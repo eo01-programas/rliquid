@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga Masiva a Google Sheets</title>
+    <!-- Tailwind CSS para diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS para leer Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Iconos -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 relative">
+
+    <!-- Contenedor Principal -->
+    <div id="mainContainer" class="bg-white rounded-xl shadow-xl w-full max-w-4xl overflow-hidden transition-all duration-300">
+        <!-- Header -->
+        <div class="bg-blue-600 p-6 text-white flex items-center justify-between">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-file-excel"></i> Importador de Excel
+            </h1>
+            <a href="index.html" class="bg-white text-blue-600 px-3 py-2 rounded-md font-semibold">Volver</a>
+        </div>
+
+        <!-- Formulario -->
+        <div class="p-8 space-y-6">
+            
+            <!-- GRID PRINCIPAL -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+                
+                <!-- COLUMNA IZQUIERDA: Inputs Año y Mes -->
+                <div class="flex flex-col gap-5 justify-center">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            <i class="fa-solid fa-calendar-days text-blue-500 mr-1"></i> Año *
+                        </label>
+                        <input type="number" id="inputAnio" placeholder="Ej. 2025" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            <i class="fa-solid fa-calendar-check text-blue-500 mr-1"></i> Mes *
+                        </label>
+                        <select id="inputMes" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm">
+                            <option value="">Selecciona un mes</option>
+                            <option value="Ene">Ene</option>
+                            <option value="Feb">Feb</option>
+                            <option value="Mar">Mar</option>
+                            <option value="Abr">Abr</option>
+                            <option value="May">May</option>
+                            <option value="Jun">Jun</option>
+                            <option value="Jul">Jul</option>
+                            <option value="Ago">Ago</option>
+                            <option value="Set">Set</option>
+                            <option value="Oct">Oct</option>
+                            <option value="Nov">Nov</option>
+                            <option value="Dic">Dic</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: Input Archivo -->
+                <div class="h-full">
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-blue-50 hover:border-blue-400 transition relative group h-full flex flex-col justify-center items-center min-h-[180px] bg-gray-50">
+                        <input type="file" id="fileInput" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <div class="space-y-3 pointer-events-none">
+                            <div class="bg-white p-4 rounded-full shadow-sm inline-block group-hover:scale-110 transition-transform duration-200">
+                                <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-500"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-700 font-bold text-lg" id="fileName">Arrastra tu Excel aquí</p>
+                                <p class="text-sm text-gray-400 mt-1">o haz clic para buscar</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen de reglas -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-sm text-yellow-800 rounded-r-lg">
+                <p class="font-bold mb-2 flex items-center gap-2"><i class="fa-solid fa-circle-info"></i> Reglas de procesamiento:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ul class="list-disc list-inside space-y-1 text-gray-700">
+                        <li>Detección auto. de encabezados.</li>
+                        <li>Se eliminan columnas H, U, Y.</li>
+                        <li>Calcula: Ingreso, Dif y Saldos.</li>
+                    </ul>
+                    <ul class="list-disc list-inside space-y-1 text-gray-700">
+                        <li>Se filtra si "Temporada" está vacía.</li>
+                        <li>Se añaden Año y Mes al inicio.</li>
+                        <li>Encabezados colum. A→CQ</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="space-y-3 pt-2">
+                <button id="btnProcesar" onclick="abrirModalConfirmacion()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-[0.98] flex justify-center items-center gap-3 text-lg">
+                    <span>Cargar Datos y Resumen</span>
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+
+                <button id="btnDescargar" onclick="descargarDatosLocales()" 
+                    class="hidden w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg shadow flex justify-center items-center gap-2 text-sm">
+                    <span>Descargar Datos Procesados (JSON)</span>
+                    <i class="fa-solid fa-download"></i>
+                </button>
+            </div>
+            
+            <!-- Mensajes de estado -->
+            <div id="statusMessage" class="hidden rounded-lg p-4 text-center text-sm font-medium whitespace-pre-line"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN -->
+    <div id="confirmationModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <i class="fa-solid fa-question text-blue-600 text-lg"></i>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">¿Está seguro?</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500">Se procesará el archivo y se enviarán los datos a base de datos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="confirmarProceso()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">Sí, procesar</button>
+                    <button type="button" onclick="cerrarModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">No, cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // URL proporcionada por el usuario
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZYa2f3fWnS_ImcS1f5LIKbLmzi3_tqQZFrbuTq3EkYz7Iv-E-f0VC3Imf_uqKUgna9Q/exec";
+        let payloadGlobal = null;
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || "Arrastra tu Excel aquí";
+            document.getElementById('fileName').textContent = fileName;
+            ocultarError();
+        });
+
+        function limpiarTexto(texto) {
+            if (!texto) return "";
+            return texto.toString()
+                .replace(/(\r\n|\n|\r)/gm, " ") 
+                .replace(/\s+/g, " ")           
+                .trim()
+                .toLowerCase();
+        }
+
+        function safeParseFloat(val) {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            // Eliminar comas (separadores de miles)
+            let str = val.toString().trim().replace(/,/g, '');
+            let num = parseFloat(str);
+            if (isNaN(num)) {
+                 str = str.replace(/[^0-9.-]/g, '');
+                 num = parseFloat(str);
+            }
+            return isNaN(num) ? 0 : num;
+        }
+
+        function abrirModalConfirmacion() {
+            const anio = document.getElementById('inputAnio').value;
+            const mes = document.getElementById('inputMes').value;
+            const fileInput = document.getElementById('fileInput');
+            if (!anio || !mes) { mostrarEstado("Por favor ingresa AÑO y MES.", "error"); return; }
+            if (!fileInput.files.length) { mostrarEstado("Por favor selecciona un archivo Excel.", "error"); return; }
+            document.getElementById('confirmationModal').classList.remove('hidden');
+        }
+        function cerrarModal() { document.getElementById('confirmationModal').classList.add('hidden'); }
+        function confirmarProceso() { cerrarModal(); procesarExcel(); }
+
+        // --- PROCESO PRINCIPAL ---
+        async function procesarExcel() {
+            const fileInput = document.getElementById('fileInput');
+            const anio = document.getElementById('inputAnio').value;
+            const mes = document.getElementById('inputMes').value;
+            const btn = document.getElementById('btnProcesar');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-5 w-5 mr-2"></div> Calculando...';
+            mostrarEstado("Procesando archivo...", "info");
+            document.getElementById('btnDescargar').classList.add('hidden');
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+                    if (rawData.length <= 0) throw new Error("El archivo está vacío.");
+
+                    // 1. Detectar Fila de Encabezados
+                    let headerRowIndex = -1;
+                    for (let r = 0; r < Math.min(rawData.length, 30); r++) {
+                        const rowStr = rawData[r].map(cell => limpiarTexto(cell)).join(" ");
+                        if (rowStr.includes("temporada") && rowStr.includes("cliente")) {
+                            headerRowIndex = r;
+                            break;
+                        }
+                    }
+                    if (headerRowIndex === -1) {
+                        console.warn("No se detectó encabezado auto. Usando fila 8.");
+                        headerRowIndex = 7; 
+                    }
+                    const headerRow = rawData[headerRowIndex];
+                    
+                    // 2. Identificar Columnas
+                    let idxIng = -1, idxDif = -1, idxTemp = -1;
+
+                    for (let c = 0; c < headerRow.length; c++) {
+                        const txt = limpiarTexto(headerRow[c]);
+                        
+                        // Lógica de celdas combinadas (Ahora solo para Ingreso/Dif simple)
+                        let txtDirectAbove = "";
+                        if (headerRowIndex > 0 && rawData[headerRowIndex - 1]) {
+                            const cellAbove = rawData[headerRowIndex - 1][c];
+                            if (cellAbove) txtDirectAbove = limpiarTexto(cellAbove);
+                        }
+
+                        // Contexto de búsqueda
+                        const fullTxtNormal = txt + " " + txtDirectAbove;     
+
+                        // --- IDENTIFICACION DE COLUMNAS ---
+
+                        // Temporada
+                        if (fullTxtNormal.includes("temporada")) idxTemp = c;
+                        
+                        // 1. "Prenda ingreso Neto"
+                        // Header: "Prendas Ingreso Neto"
+                        if (fullTxtNormal.includes("prendas") && fullTxtNormal.includes("ingreso") && fullTxtNormal.includes("neto")) {
+                            idxIng = c;
+                        }
+                        
+                        // 2. "Dif. Liqu.-Vs Ing" 
+                        // Header: "Diferencia Liquidac.vs Ing+Reasig"
+                        if (fullTxtNormal.includes("diferencia") && fullTxtNormal.includes("liquidac") && fullTxtNormal.includes("vs")) {
+                            idxDif = c;
+                        }
+                    }
+
+                    if (idxTemp === -1) idxTemp = 3; 
+
+                    console.log(`Indices: Temp:${idxTemp} Ing:${idxIng} Dif:${idxDif}`);
+
+                    // 3. Procesar Datos
+                    const processed = [];
+                    let sumIng = 0, sumDif = 0;
+
+                    for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+                        let row = rawData[i];
+                        if (!row || row.length === 0) continue;
+                        
+                        const temp = row[idxTemp];
+                        if (!temp || temp.toString().trim() === "") continue;
+
+                        if (idxIng !== -1) sumIng += safeParseFloat(row[idxIng]);
+                        if (idxDif !== -1) sumDif += safeParseFloat(row[idxDif]);
+
+                        // Limpieza fila (Eliminar H, U, Y por posición si es consistente)
+                        let cleanRow = [...row];
+                        if (cleanRow.length > 24) cleanRow.splice(24, 1);
+                        if (cleanRow.length > 20) cleanRow.splice(20, 1);
+                        if (cleanRow.length > 7) cleanRow.splice(7, 1);
+                        
+                        cleanRow.unshift(mes);
+                        cleanRow.unshift(anio);
+                        processed.push(cleanRow);
+                    }
+
+                    if (processed.length === 0) throw new Error("No hay datos válidos.");
+
+                    // 4. Resumen (SIN SALDOS, CON FECHA)
+                    const finalSumDif = Math.round(sumDif) * -1;
+                    
+                    // Fecha y Hora actual
+                    const fechaActual = new Date().toLocaleString();
+
+                    const summary = [
+                        anio, mes, 
+                        Math.round(sumIng), 
+                        finalSumDif, 
+                        (Math.round(sumIng) !== 0 ? finalSumDif/Math.round(sumIng) : 0),
+                        fechaActual // Columna F
+                    ];
+
+                    // Enviar
+                    const payload = { data: processed, summary: summary };
+                    payloadGlobal = payload;
+                    
+                    if (typeof google !== 'undefined' && google.script) {
+                        google.script.run
+                            .withSuccessHandler(() => onSuccess(fileInput, btn))
+                            .withFailureHandler((err) => onError(err, btn))
+                            .guardarDatosEnSheet(payload);
+                    } else {
+                        fetch(SCRIPT_URL, {
+                            method: 'POST', redirect: "follow", credentials: 'omit',
+                            headers: { "Content-Type": "text/plain;charset=utf-8" },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(res => res.json())
+                        .then(res => {
+                            if(res.status === 'success') onSuccess(fileInput, btn);
+                            else throw new Error(res.message);
+                        })
+                        .catch(err => {
+                            onError("Error de conexión: " + err.message + "\nDescarga el archivo si estás en vista previa.", btn);
+                            document.getElementById('btnDescargar').classList.remove('hidden');
+                        });
+                    }
+
+                } catch (error) { onError(error, btn); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function onSuccess(inp, btn) {
+            btn.disabled = false; btn.innerHTML = '<span>Cargar Datos y Resumen</span><i class="fa-solid fa-paper-plane"></i>';
+            mostrarEstado("¡Éxito! Datos cargados.", "success"); inp.value = ''; 
+            document.getElementById('fileName').textContent = "Arrastra tu Excel aquí";
+        }
+        function onError(err, btn) {
+            btn.disabled = false; btn.innerHTML = '<span>Reintentar</span>';
+            mostrarEstado(typeof err === 'string' ? err : err.message, "error");
+        }
+        function mostrarEstado(msg, type) {
+            const d = document.getElementById('statusMessage');
+            d.textContent = msg; d.className = `hidden rounded-lg p-4 text-center text-sm font-medium ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            d.classList.remove('hidden');
+        }
+        function ocultarError() { document.getElementById('statusMessage').classList.add('hidden'); }
+        function descargarDatosLocales() {
+            if(!payloadGlobal) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(payloadGlobal)], {type:"application/json"}));
+            a.download = "payload.json"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicadores de Liquidación</title>
+    <!-- Tailwind CSS con precarga -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Iconos -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        .filter-select {
+            @apply border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 font-medium;
+        }
+        .loader-overlay {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(2px);
+        }
+        /* Optimización de renderizado */
+        canvas {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        /* Indicador de estado */
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        .status-success { background-color: #10b981; }
+        .status-loading { background-color: #f59e0b; animation: pulse 2s infinite; }
+        .status-error { background-color: #ef4444; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 h-screen w-screen overflow-hidden flex flex-col p-4 font-sans relative">
+
+    <!-- Loader General -->
+    <div id="mainLoader" class="loader-overlay absolute inset-0 z-50 flex flex-col items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 flex flex-col items-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-3"></div>
+            <p id="loaderText" class="text-blue-600 font-bold">Cargando datos...</p>
+            <p class="text-gray-500 text-sm mt-1">Por favor espera</p>
+        </div>
+    </div>
+
+    <!-- BLOQUE SUPERIOR: Título y Filtros -->
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i class="fa-solid fa-chart-line text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Indicadores de Liquidación</h1>
+                <div id="connectionStatus" class="text-xs text-gray-500 flex items-center">
+                    <span>Estado: </span>
+                    <span id="statusText" class="ml-1 font-medium">Listo</span>
+                    <span id="statusDot" class="status-indicator status-success"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-100">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Desde:</span>
+                <select id="desdeAnio" class="filter-select bg-white">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                </select>
+                <select id="desdeMes" class="filter-select bg-white">
+                    <option value="0">Ene</option><option value="1">Feb</option><option value="2">Mar</option>
+                    <option value="3">Abr</option><option value="4">May</option><option value="5">Jun</option>
+                    <option value="6">Jul</option><option value="7">Ago</option><option value="8">Set</option>
+                    <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dic</option>
+                </select>
+            </div>
+            <div class="h-6 w-px bg-gray-300 mx-1"></div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Hasta:</span>
+                <select id="hastaAnio" class="filter-select bg-white">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                </select>
+                <select id="hastaMes" class="filter-select bg-white">
+                    <option value="0">Ene</option><option value="1">Feb</option><option value="2">Mar</option>
+                    <option value="3">Abr</option><option value="4">May</option><option value="5">Jun</option>
+                    <option value="6">Jul</option><option value="7">Ago</option><option value="8">Set</option>
+                    <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dic</option>
+                </select>
+            </div>
+            
+            <!-- Botón circular para cargar datos -->
+            <div class="ml-2">
+                <a href="importar_excel.html" title="Cargar datos" class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+                    <i class="fa-solid fa-file-import"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOQUE INFERIOR: Grilla -->
+    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 grid-rows-2 gap-4 min-h-0">
+        
+        <!-- Gráfico 1: Ingreso Neto vs %Diferencia (arriba izquierda) -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative">
+            <div class="flex items-start justify-between mb-2">
+                <h3 id="chart1Title" class="text-gray-600 font-bold">Ingresos vs Liquidación</h3>
+                <div id="chart1Legend" class="flex items-center gap-4"></div>
+            </div>
+            <div class="flex-1 w-full min-h-0 relative"><canvas id="chart1"></canvas></div>
+        </div>
+
+        <!-- Detalle por Cliente de Saldos 1ra: Tabla + Gráfico (derecha, abarca 2 filas) -->
+        <div class="bg-white rounded-xl shadow-sm p-2 border border-gray-200 flex flex-col relative md:row-span-2 gap-0">
+            <div class="flex items-center justify-between mb-0">
+                <h3 class="text-gray-600 font-bold">Detalle por Cliente de Saldos 1ra</h3>
+                <span id="clientePeriodo" class="text-xs text-gray-500 font-medium"></span>
+            </div>
+            
+            <!-- Tabla de clientes (45% altura) -->
+            <div class="w-full overflow-auto min-h-0" style="flex: 0 0 45%;">
+                <table id="tablaClientes" class="w-full text-sm">
+                    <thead class="bg-gray-800 sticky top-0">
+                        <tr class="text-left text-xs font-bold text-white">
+                            <th class="py-0.5 px-2 border-b">Cliente</th>
+                            <th class="py-0.5 px-2 border-b text-right">Prendas Pedido</th>
+                            <th class="py-0.5 px-2 border-b text-right">Prendas Ingreso Neto</th>
+                            <th class="py-0.5 px-2 border-b text-right">Saldos 1ra</th>
+                            <th class="py-0.5 px-2 border-b text-right">%Saldo 1ra</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaClientesBody" class="text-gray-700">
+                        <tr><td colspan="5" class="py-1 text-center text-gray-400">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Gráfico de clientes (55% altura, pegado a la tabla) -->
+            <div class="w-full min-h-0 relative -mt-1" style="flex: 0 0 55%;"><canvas id="chartClientes" style="display:block; width:100% !important; height:100% !important;"></canvas></div>
+        </div>
+
+        <!-- Gráfico 2: Evolución de Diferencias - 3 Columnas (abajo izquierda) -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative">
+            <h3 id="chartEvoTitle" class="text-gray-600 font-bold mb-1">Ingreso Neto vs %Saldos</h3>
+            <div class="flex-1 w-full min-h-0 flex gap-2 items-stretch overflow-hidden">
+                <!-- Columna 1: Saldos 1ra (40%) -->
+                <div class="flex flex-col min-w-0" style="flex: 0 0 40%;">
+                    <h4 class="text-sm font-semibold text-gray-500 mb-0">Saldos 1ra</h4>
+                    <div class="flex-1 relative min-w-0 min-h-0 px-0"><canvas id="chart5" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
+                </div>
+                <!-- Columna 2: Saldos 2da (30%) -->
+                <div class="flex flex-col min-w-0" style="flex: 0 0 30%;">
+                    <h4 class="text-sm font-semibold text-gray-500 mb-0">Saldos 2da</h4>
+                    <div class="flex-1 relative min-w-0 min-h-0 px-0"><canvas id="chart2" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
+                </div>
+                <!-- Columna 3: Saldos 3ra (30%) -->
+                <div class="flex flex-col min-w-0" style="flex: 0 0 30%;">
+                    <h4 class="text-sm font-semibold text-gray-500 mb-0">Saldos 3ra</h4>
+                    <div class="flex-1 relative min-w-0 min-h-0 px-0"><canvas id="chart3" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // URL proporcionada por el usuario
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVNAnUEe4_9WjJ6BplSfBi_oI6ZjeQDFeEnA7JOrmXGrRl_Fz81pmRsDZW-MgZzhUdTg/exec";
+        
+        let charts = {};
+        const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
+        
+        // Caché para optimizar llamadas repetidas
+        const cache = {
+            dashboard: null,
+            clientes: null,
+            lastParams: null,
+            timestamp: null,
+            TTL: 30000 // 30 segundos de validez
+        };
+        
+        // Funciones para actualizar el estado de conexión
+        function setConnectionStatus(status, text) {
+            const statusText = document.getElementById('statusText');
+            const statusDot = document.getElementById('statusDot');
+            if (statusText) statusText.textContent = text;
+            if (statusDot) {
+                statusDot.className = 'status-indicator';
+                statusDot.classList.add(`status-${status}`);
+            }
+        }
+
+        // Helper: formato corto para ejes (5,000 -> 5k, 10,000 -> 10k)
+        function formatShortNumber(val) {
+            if (val === null || val === undefined) return '' + val;
+            const n = Number(val);
+            if (isNaN(n)) return String(val);
+            const abs = Math.abs(n);
+            if (abs >= 1000) {
+                const k = n / 1000;
+                return (Number.isInteger(k) ? k.toString() : k.toFixed(1).replace(/\.0$/,'')) + 'k';
+            }
+            return new Intl.NumberFormat('es-PE').format(n);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            establecerFechasPorDefecto();
+            initCharts();
+            cargarDatosIniciales(); // Carga paralela optimizada
+            
+            // Debounce para evitar múltiples llamadas al cambiar filtros
+            let filterTimeout;
+            document.querySelectorAll('select').forEach(sel => {
+                sel.addEventListener('change', () => {
+                    clearTimeout(filterTimeout);
+                    // Invalidar caché al cambiar filtros
+                    cache.dashboard = null;
+                    cache.lastParams = null;
+                    filterTimeout = setTimeout(() => {
+                        actualizarGraficos();
+                    }, 300); // 300ms de espera
+                });
+            });
+        });
+        
+        // Cargar datos iniciales en paralelo
+        async function cargarDatosIniciales() {
+            const loading = document.getElementById('mainLoader');
+            loading.classList.remove('hidden');
+            setConnectionStatus('loading', 'Cargando...');
+            
+            try {
+                // Ejecutar ambas llamadas en paralelo para mayor velocidad
+                await Promise.all([
+                    actualizarGraficos(true),
+                    cargarDatosClientes()
+                ]);
+                setConnectionStatus('success', 'Conectado');
+            } catch (error) {
+                console.error("Error en carga inicial:", error);
+                setConnectionStatus('error', 'Error de conexión');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function establecerFechasPorDefecto() {
+            const hoy = new Date();
+            const fechaHasta = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+            // Mostrar 7 meses en el filtro: desde = hasta - 6 meses
+            const fechaDesde = new Date(fechaHasta.getFullYear(), fechaHasta.getMonth() - 6, 1);
+
+            document.getElementById('hastaAnio').value = fechaHasta.getFullYear();
+            document.getElementById('hastaMes').value = fechaHasta.getMonth();
+            document.getElementById('desdeAnio').value = fechaDesde.getFullYear();
+            document.getElementById('desdeMes').value = fechaDesde.getMonth();
+        }
+
+        function actualizarTituloChart1() {
+            const desdeAnio = document.getElementById('desdeAnio').value;
+            const hastaAnio = document.getElementById('hastaAnio').value;
+            const desdeMesIdx = parseInt(document.getElementById('desdeMes').value, 10);
+            const hastaMesIdx = parseInt(document.getElementById('hastaMes').value, 10);
+            const desdeMes = monthNames[desdeMesIdx] || '';
+            const hastaMes = monthNames[hastaMesIdx] || '';
+
+            let rangeText = '';
+            if (desdeAnio === hastaAnio) {
+                rangeText = `(${desdeMes} - ${hastaMes} ${hastaAnio})`;
+            } else {
+                rangeText = `(${desdeMes} ${desdeAnio} - ${hastaMes} ${hastaAnio})`;
+            }
+
+            const title = `Ingreso Neto vs %Dif. Liquidac. ${rangeText}`;
+            const el = document.getElementById('chart1Title');
+            if (el) el.innerText = title;
+        }
+
+        function actualizarTituloEvolucion() {
+            const desdeAnio = document.getElementById('desdeAnio').value;
+            const hastaAnio = document.getElementById('hastaAnio').value;
+            const desdeMesIdx = parseInt(document.getElementById('desdeMes').value, 10);
+            const hastaMesIdx = parseInt(document.getElementById('hastaMes').value, 10);
+            const desdeMes = monthNames[desdeMesIdx] || '';
+            const hastaMes = monthNames[hastaMesIdx] || '';
+
+            let rangeText = '';
+            if (desdeAnio === hastaAnio) {
+                rangeText = `(${desdeMes} - ${hastaMes} ${hastaAnio})`;
+            } else {
+                rangeText = `(${desdeMes} ${desdeAnio} - ${hastaMes} ${hastaAnio})`;
+            }
+
+            const title = `Ingreso Neto vs %Saldos ${rangeText}`;
+            const el = document.getElementById('chartEvoTitle');
+            if (el) el.innerText = title;
+        }
+
+        function renderChart1Legend() {
+            const container = document.getElementById('chart1Legend');
+            if (!container || !charts.c1) return;
+            container.innerHTML = '';
+
+            charts.c1.data.datasets.forEach((ds, i) => {
+                // Crear item
+                const item = document.createElement('div');
+                item.style.display = 'inline-flex';
+                item.style.alignItems = 'center';
+                item.style.gap = '6px';
+                item.style.cursor = 'pointer';
+
+                const sw = document.createElement('span');
+                sw.style.display = 'inline-block';
+                sw.style.width = '12px';
+                sw.style.height = '12px';
+                sw.style.borderRadius = '50%';
+                sw.style.boxSizing = 'border-box';
+                // color prefer backgroundColor then borderColor
+                const color = (Array.isArray(ds.backgroundColor) ? ds.backgroundColor[0] : ds.backgroundColor) || ds.borderColor || '#666';
+                sw.style.background = color;
+
+                const label = document.createElement('span');
+                label.textContent = ds.label || '';
+                label.style.fontSize = '13px';
+                label.style.color = '#374151';
+
+                // Dim if hidden
+                const hidden = !charts.c1.isDatasetVisible(i);
+                if (hidden) {
+                    sw.style.opacity = '0.4';
+                    label.style.opacity = '0.4';
+                }
+
+                item.appendChild(sw);
+                item.appendChild(label);
+
+                item.addEventListener('click', () => {
+                    const vis = charts.c1.isDatasetVisible(i);
+                    charts.c1.setDatasetVisibility(i, !vis);
+                    charts.c1.update();
+                    renderChart1Legend();
+                });
+
+                container.appendChild(item);
+            });
+        }
+
+        function initCharts() {
+            // Plugin para mostrar etiquetas en la base de las barras (3px entre eje X y dato)
+            const barBaseLabelPlugin = {
+                id: 'barBaseLabels',
+                afterDatasetsDraw(chart, args, options) {
+                    const ctx = chart.ctx;
+                    const chartArea = chart.chartArea;
+
+                    // ---------- BARRAS: etiquetas en la base (apiladas si hay varias series)
+                    const barDatasetIndices = chart.data.datasets.map((d, i) => {
+                        const m = chart.getDatasetMeta(i);
+                        return (m && m.type === 'bar' && chart.isDatasetVisible(i)) ? i : -1;
+                    }).filter(i => i >= 0);
+
+                    const isHorizontalChart = chart.options && chart.options.indexAxis === 'y';
+
+                    chart.data.datasets.forEach((dataset, datasetIndex) => {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        // Solo para barras y visibles
+                        if (!meta || meta.type !== 'bar' || !chart.isDatasetVisible(datasetIndex)) return;
+
+                        const positionOffset = barDatasetIndices.indexOf(datasetIndex);
+                        meta.data.forEach((bar, index) => {
+                            const value = dataset.data[index];
+                            if (value === null || value === undefined) return;
+
+                            const x = bar.x;
+                            const base = bar.base;
+
+                            const padding = (options && options.padding) || 3;
+                            const fontSize = (options && options.fontSize) || 14;
+                            const fontFamily = (options && options.fontFamily) || 'Arial';
+                            ctx.font = 'bold ' + fontSize + 'px ' + fontFamily;
+
+                            let text = value;
+                            if (typeof value === 'number') {
+                                text = new Intl.NumberFormat('es-PE').format(value);
+                            }
+
+                            const isIngresoNeto = dataset.label && dataset.label.toLowerCase().includes('ingreso');
+                            const paddingX = 6;
+                            const paddingY = 3;
+
+                            const metrics = ctx.measureText(text);
+                            const textWidth = metrics.width;
+                            const rectWidth = textWidth + paddingX * 2;
+                            const rectHeight = fontSize + paddingY * 2;
+
+                            if (isHorizontalChart) {
+                                // Para barras horizontales, 'base' es el inicio y 'x' es el extremo
+                                const startX = Math.min(x, base);
+                                const endX = Math.max(x, base);
+
+                                // Si el chart es chart2 o chart3 queremos la etiqueta al final de la barra (a la derecha)
+                                const chartId = chart && chart.canvas && chart.canvas.id;
+                                const rightLabelCharts = ['chart2', 'chart3'];
+
+                                // Si está en la lista, colocamos la etiqueta al final de la barra con 1px de padding
+                                const desiredPadding = 1; // px entre barra y etiqueta
+                                let labelX;
+                                if (rightLabelCharts.includes(chartId)) {
+                                    labelX = endX + desiredPadding;
+                                } else {
+                                    // comportamiento por defecto: cerca de la base
+                                    labelX = startX + padding + 2;
+                                }
+
+                                // Si hay múltiples datasets de barra, desplazamos ligeramente en Y para evitar solapamiento
+                                const stackSpacing = fontSize + 4;
+                                const labelY = (bar.y || ((bar.top + bar.bottom) / 2)) + (positionOffset >= 0 ? positionOffset * stackSpacing : 0);
+
+                                const rectX = labelX - paddingX;
+                                const rectY = labelY - (rectHeight / 2);
+
+                                // Evitar que la etiqueta quede fuera del area derecha: si se sale, moverla dentro (dentro de la barra)
+                                let drawInside = false;
+                                if (rectX + rectWidth > chartArea.right) {
+                                    drawInside = true;
+                                }
+
+                                if (drawInside) {
+                                    // Dibujar la etiqueta dentro de la barra (alineada a la derecha dentro de la barra)
+                                    const insideX = endX - paddingX;
+                                    if (isIngresoNeto) {
+                                        const radius = 4;
+                                        ctx.fillStyle = (options && options.bgColor) || '#F3F4F6';
+                                        ctx.beginPath();
+                                        ctx.moveTo(insideX - rectWidth + radius, rectY);
+                                        ctx.arcTo(insideX + radius, rectY, insideX + radius, rectY + rectHeight, radius);
+                                        ctx.arcTo(insideX + radius, rectY + rectHeight, insideX - rectWidth, rectY + rectHeight, radius);
+                                        ctx.arcTo(insideX - rectWidth, rectY + rectHeight, insideX - rectWidth, rectY, radius);
+                                        ctx.arcTo(insideX - rectWidth, rectY, insideX - rectWidth + radius, rectY, radius);
+                                        ctx.closePath();
+                                        ctx.fill();
+
+                                        ctx.fillStyle = (options && options.color) || '#111827';
+                                        ctx.textAlign = 'right';
+                                        ctx.textBaseline = 'middle';
+                                        ctx.fillText(text, insideX - 2, labelY);
+                                    } else {
+                                        ctx.fillStyle = (options && options.color) || '#374151';
+                                        ctx.textAlign = 'right';
+                                        ctx.textBaseline = 'middle';
+                                        ctx.fillText(text, insideX - 2, labelY);
+                                    }
+                                } else {
+                                    // Dibujar fuera a la derecha con 1px padding
+                                    if (isIngresoNeto) {
+                                        const radius = 4;
+                                        ctx.fillStyle = (options && options.bgColor) || '#F3F4F6';
+                                        ctx.beginPath();
+                                        ctx.moveTo(rectX + radius, rectY);
+                                        ctx.arcTo(rectX + rectWidth, rectY, rectX + rectWidth, rectY + rectHeight, radius);
+                                        ctx.arcTo(rectX + rectWidth, rectY + rectHeight, rectX, rectY + rectHeight, radius);
+                                        ctx.arcTo(rectX, rectY + rectHeight, rectX, rectY, radius);
+                                        ctx.arcTo(rectX, rectY, rectX + rectWidth, rectY, radius);
+                                        ctx.closePath();
+                                        ctx.fill();
+
+                                        ctx.fillStyle = (options && options.color) || '#111827';
+                                        ctx.textAlign = 'left';
+                                        ctx.textBaseline = 'middle';
+                                        ctx.fillText(text, labelX, labelY);
+                                    } else {
+                                        ctx.fillStyle = (options && options.color) || '#374151';
+                                        ctx.textAlign = 'left';
+                                        ctx.textBaseline = 'middle';
+                                        ctx.fillText(text, labelX, labelY);
+                                    }
+                                }
+                            } else {
+                                // Vertical bars (comportamiento previo): etiqueta encima de la base
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+
+                                const stackSpacing = fontSize + 6;
+                                const verticalOffset = (positionOffset >= 0) ? positionOffset * stackSpacing : 0;
+                                const y = base - padding - verticalOffset;
+
+                                const rectX = x - rectWidth / 2;
+                                const rectY = y - fontSize - paddingY;
+
+                                if (x >= chartArea.left && x <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
+                                    if (isIngresoNeto) {
+                                        const radius = 4;
+                                        ctx.fillStyle = (options && options.bgColor) || '#F3F4F6';
+                                        ctx.beginPath();
+                                        ctx.moveTo(rectX + radius, rectY);
+                                        ctx.arcTo(rectX + rectWidth, rectY, rectX + rectWidth, rectY + rectHeight, radius);
+                                        ctx.arcTo(rectX + rectWidth, rectY + rectHeight, rectX, rectY + rectHeight, radius);
+                                        ctx.arcTo(rectX, rectY + rectHeight, rectX, rectY, radius);
+                                        ctx.arcTo(rectX, rectY, rectX + rectWidth, rectY, radius);
+                                        ctx.closePath();
+                                        ctx.fill();
+
+                                        ctx.fillStyle = (options && options.color) || '#111827';
+                                        ctx.fillText(text, x, y);
+                                    } else {
+                                        ctx.fillStyle = (options && options.color) || '#374151';
+                                        ctx.fillText(text, x, y);
+                                    }
+                                }
+                            }
+                        });
+                    });
+
+                    // ---------- LINEAS: etiquetas encima de cada punto (negrita)
+                    const lineDatasetIndices = chart.data.datasets.map((d, i) => {
+                        const m = chart.getDatasetMeta(i);
+                        return (m && m.type === 'line' && chart.isDatasetVisible(i)) ? i : -1;
+                    }).filter(i => i >= 0);
+
+                    chart.data.datasets.forEach((dataset, datasetIndex) => {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        if (!meta || meta.type !== 'line' || !chart.isDatasetVisible(datasetIndex)) return;
+
+                        // position among visible lines (for stacking if multiple)
+                        const positionOffset = lineDatasetIndices.indexOf(datasetIndex);
+                        const fontSize = (options && options.fontSize) || 12;
+                        const fontFamily = (options && options.fontFamily) || 'Arial';
+                        ctx.font = 'bold ' + fontSize + 'px ' + fontFamily;
+                        // Mostrar etiquetas de línea. Por defecto a la derecha; para chart1 las colocamos arriba
+                        meta.data.forEach((point, index) => {
+                            if (!point || point.skip) return;
+                            const x = point.x;
+                            const yPoint = point.y;
+                            const offset = (options && options.lineOffset) || 6;
+
+                            let text = dataset.data[index];
+                            if (typeof text === 'number') {
+                                if (dataset.yAxisID === 'y1' || dataset.xAxisID === 'x1') {
+                                    text = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(text) + '%';
+                                } else {
+                                    text = new Intl.NumberFormat('es-PE').format(text);
+                                }
+                            }
+
+                            // if multiple line datasets, stack upward (vertical shift)
+                            const stackSpacing = fontSize + 4;
+                            const isChart1 = chart && chart.canvas && (chart.canvas.id === 'chart1' || chart.canvas.id === 'chartClientes');
+
+                            if (isChart1) {
+                                // Etiqueta centrada arriba del punto
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                const y = yPoint - offset - (positionOffset * stackSpacing);
+                                const xLabel = x;
+                                if (xLabel >= chartArea.left && xLabel <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
+                                    ctx.fillStyle = (options && options.lineColor) || '#ef4444';
+                                    ctx.fillText(text, xLabel, y);
+                                }
+                            } else {
+                                // Default: etiqueta a la derecha del punto
+                                ctx.textAlign = 'left';
+                                ctx.textBaseline = 'middle';
+                                const y = yPoint - offset - (positionOffset * stackSpacing);
+                                const horizOffset = (options && options.lineLabelOffsetX) ? options.lineLabelOffsetX : 8;
+                                const xLabel = x + horizOffset + (positionOffset * 6);
+                                if (xLabel >= chartArea.left && xLabel <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
+                                    ctx.fillStyle = (options && options.lineColor) || '#111827';
+                                    ctx.fillText(text, xLabel, y);
+                                }
+                            }
+                        });
+                    });
+                }
+            };
+
+            // Registrar plugin globalmente
+            Chart.register(barBaseLabelPlugin);
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                // Dejar espacio a la derecha para etiquetas dibujadas fuera del canvas
+                layout: { padding: { right: 64 } },
+                plugins: { 
+                    legend: { 
+                        position: 'bottom'
+                        // Eliminado onClick manual para restaurar comportamiento nativo de Chart.js
+                    } 
+                },
+                scales: { y: { beginAtZero: true } }
+            };
+
+            // Chart 1: Mixto
+            const ctx1 = document.getElementById('chart1').getContext('2d');
+            charts.c1 = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                        datasets: [
+                        { label: 'Ingreso Neto', data: [], backgroundColor: '#3b82f6', order: 2, yAxisID: 'y' },
+                        { label: 'Diferencia', data: [], backgroundColor: '#f97316', order: 2, yAxisID: 'y' },
+                        { label: '% Dif', data: [], type: 'line', borderColor: '#ef4444', backgroundColor: '#ef4444', pointBackgroundColor: '#ef4444', pointBorderColor: '#ef4444', yAxisID: 'y1', order: 1 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    // Reducir padding derecho para que el chart ocupe más ancho
+                    layout: { padding: { right: 16 } },
+                        plugins: {
+                            ...commonOptions.plugins,
+                            // ocultar la leyenda nativa porque usamos una leyenda DOM a la derecha del título
+                            legend: { display: false },
+                            // Opciones para el plugin de etiquetas en la base de las barras
+                            barBaseLabels: {
+                                color: '#374151',
+                                fontSize: 14,
+                                fontFamily: 'Helvetica Neue, Arial',
+                                padding: 1,
+                                lineColor: '#ef4444',
+                                lineOffset: 6
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.dataset.yAxisID === 'y1') {
+                                            label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.y) + '%';
+                                        } else {
+                                            label += new Intl.NumberFormat('es-PE').format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                        y: { 
+                            position: 'left',
+                            ticks: { callback: val => formatShortNumber(val) }
+                        },
+                        y1: { 
+                            // Ocultamos el eje secundario para dar más espacio horizontal al chart
+                            display: false,
+                            grid: { display: false }
+                        }
+                        }
+                }
+            });
+
+            // Chart 2: Saldos 2da (Horizontal bar + line), similar to chart5
+            const ctx2 = document.getElementById('chart2').getContext('2d');
+            charts.c2 = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Saldos 2da', data: [], backgroundColor: '#ef4444', borderRadius: 3, yAxisID: 'y' },
+                        { label: '%Saldos 2da', data: [], type: 'line', borderColor: '#f97316', backgroundColor: '#f97316', xAxisID: 'x1', order: 0 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 48 } },
+                    // Ajustes del plugin de etiquetas en base de barras
+                    plugins: {
+                        barBaseLabels: { fontSize: 14, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    // Para charts horizontales las líneas usan x1 como eje secundario
+                                    if (context.dataset.xAxisID === 'x1') {
+                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.x) + '%';
+                                    } else {
+                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.x);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, display: false, grid: { display: false } },
+                        x: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 20000,
+                            ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000 },
+                            grid: { color: '#e6e6e6' }
+                        },
+                        x1: {
+                            position: 'top',
+                            display: false,
+                            min: -5,
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // Chart 3: Saldos 3ra (Horizontal bar + line)
+            const ctx3 = document.getElementById('chart3').getContext('2d');
+            charts.c3 = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Saldos 3ra', data: [], backgroundColor: '#06b6d4', borderRadius: 3, yAxisID: 'y' },
+                        { label: '%Saldos 3ra', data: [], type: 'line', borderColor: '#0ea5a4', backgroundColor: '#0ea5a4', xAxisID: 'x1', order: 0 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 48 } },
+                    plugins: {
+                        barBaseLabels: { fontSize: 14, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.dataset.xAxisID === 'x1') {
+                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.x) + '%';
+                                    } else {
+                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.x);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, display: false, grid: { display: false } },
+                        x: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 20000,
+                            ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000 },
+                            grid: { color: '#e6e6e6' }
+                        },
+                        x1: {
+                            position: 'top',
+                            display: false,
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // Chart 4 (Eficiencia) removed from DOM - no initialization here
+
+            // Chart Clientes: Análisis por Cliente (barras + línea)
+            const ctxClientes = document.getElementById('chartClientes').getContext('2d');
+            charts.clientes = new Chart(ctxClientes, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Prendas Ingreso Neto', data: [], backgroundColor: '#7dd3fc', yAxisID: 'y', order: 2 },
+                        { label: '%Saldo 1ra', data: [], type: 'line', borderColor: '#ef4444', backgroundColor: '#ef4444', pointBackgroundColor: '#ef4444', yAxisID: 'y1', order: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 8 } },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        barBaseLabels: {
+                            color: '#374151',
+                            fontSize: 16,
+                            fontFamily: 'Helvetica Neue, Arial',
+                            padding: 3,
+                            lineColor: '#ef4444',
+                            lineOffset: 10
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.dataset.yAxisID === 'y1') {
+                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.y) + '%';
+                                    } else {
+                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: { callback: val => formatShortNumber(val) }
+                        },
+                        y1: {
+                            position: 'right',
+                            display: false,
+                            beginAtZero: true,
+                            min: -5,
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(val) {
+                                    return val.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 5: Saldos 1ra (Horizontal bar + line)
+            const ctx5 = document.getElementById('chart5').getContext('2d');
+            charts.c5 = new Chart(ctx5, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Saldos 1ra', data: [], backgroundColor: '#8b5cf6', borderRadius: 3, yAxisID: 'y' },
+                        { label: '%Saldos 1ra', data: [], type: 'line', borderColor: '#ec4899', backgroundColor: '#ec4899', xAxisID: 'x1', order: 0 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 48 } },
+                    plugins: {
+                        barBaseLabels: { fontSize: 14, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.dataset.xAxisID === 'x1') {
+                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.x) + '%';
+                                    } else {
+                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.x);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        // Mostrar eje Y con etiquetas de categoría (meses)
+                        y: { display: true, ticks: { color: '#374151' } },
+                        x: { beginAtZero: true, min:0, max:20000, ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000 }, grid: { color: '#e6e6e6' } },
+                        x1: { position: 'top', display: false, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        async function actualizarGraficos(silentMode = false) {
+            const loading = document.getElementById('mainLoader');
+            if (!silentMode) {
+                loading.classList.remove('hidden');
+                setConnectionStatus('loading', 'Actualizando...');
+            }
+
+            // Actualizar título del gráfico 1 según filtros seleccionados
+            try { actualizarTituloChart1(); actualizarTituloEvolucion(); } catch(e) { console.warn('Error actualizando títulos', e); }
+
+            const params = {
+                action: 'getDashboardData',
+                desdeAnio: document.getElementById('desdeAnio').value,
+                desdeMes: document.getElementById('desdeMes').value,
+                hastaAnio: document.getElementById('hastaAnio').value,
+                hastaMes: document.getElementById('hastaMes').value
+            };
+            
+            // Verificar si tenemos datos en caché válidos
+            const paramsKey = JSON.stringify(params);
+            const now = Date.now();
+            if (cache.dashboard && cache.lastParams === paramsKey && 
+                cache.timestamp && (now - cache.timestamp) < cache.TTL) {
+                // Usar caché
+                procesarDatos(cache.dashboard);
+                if (!silentMode) {
+                    loading.classList.add('hidden');
+                    setConnectionStatus('success', 'Datos en caché');
+                    setTimeout(() => setConnectionStatus('success', 'Conectado'), 2000);
+                }
+                return;
+            }
+
+            try {
+                // LLAMADA AL GOOGLE SHEET REAL con timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos timeout
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: "follow", 
+                    credentials: 'omit',
+                    signal: controller.signal,
+                    body: JSON.stringify(params)
+                });
+                
+                clearTimeout(timeoutId);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // Guardar en caché
+                    cache.dashboard = result.data;
+                    cache.lastParams = paramsKey;
+                    cache.timestamp = now;
+                    
+                    procesarDatos(result.data);
+                    setConnectionStatus('success', 'Conectado');
+                } else {
+                    console.error("Error del servidor:", result.message);
+                    setConnectionStatus('error', 'Error del servidor');
+                    alert("Error al cargar datos: " + result.message);
+                }
+
+            } catch (error) {
+                setConnectionStatus('error', 'Error de conexión');
+                if (error.name === 'AbortError') {
+                    alert("La solicitud tardó demasiado. Por favor, intenta de nuevo.");
+                } else {
+                    console.error("Error de conexión:", error);
+                    // Mensaje amigable para entorno local
+                    let msg = "Error de conexión. ";
+                    if(window.location.protocol === 'file:') msg += "Asegúrate de tener conexión a internet.";
+                    else msg += "Si estás en vista previa, descarga el HTML.";
+                    alert(msg);
+                }
+            } finally {
+                if (!silentMode) loading.classList.add('hidden');
+            }
+        }
+
+        function procesarDatos(data) {
+            if (!data || data.length === 0) {
+                // Limpiar gráficos
+                [charts.c1, charts.c2, charts.c5, charts.c3].forEach(c => {
+                    if (c) {
+                        c.data.labels = [];
+                        c.data.datasets.forEach(d => d.data = []);
+                    }
+                });
+                return;
+            }
+
+            // Preparar arrays
+            const labels = [];
+            const dataIngreso = [];
+            const dataDiferencia = [];
+            const dataPorcentaje = [];
+            const dataSaldos1ra = [];
+            const dataPorcSaldos1ra = [];
+            const dataSaldos2da = [];
+            const dataPorcSaldos2da = [];
+            const dataSaldos3ra = [];
+            const dataPorcSaldos3ra = [];
+
+            // Procesar datos una sola vez
+            data.forEach(item => {
+                labels.push(`${item.mes} ${item.anio}`);
+                
+                const ing = parseFloat(item.ingreso) || 0;
+                const dif = parseFloat(item.diferencia) || 0;
+                const saldos1ra = parseFloat(item.saldos1ra) || 0;
+                const saldos2da = parseFloat(item.saldos2da) || 0;
+                const saldos3ra = parseFloat(item.saldos3ra) || 0;
+                const porc = (parseFloat(item.porcentaje) || 0) * 100;
+                
+                dataIngreso.push(ing);
+                dataDiferencia.push(dif);
+                dataSaldos1ra.push(saldos1ra);
+                dataSaldos2da.push(saldos2da);
+                dataSaldos3ra.push(saldos3ra);
+                dataPorcentaje.push(Number(porc.toFixed(2)));
+
+                // Cálculos de porcentajes
+                dataPorcSaldos1ra.push(ing !== 0 ? Number(((saldos1ra / ing) * 100).toFixed(2)) : 0);
+                dataPorcSaldos2da.push(ing !== 0 ? Number(((saldos2da / ing) * 100).toFixed(2)) : 0);
+                dataPorcSaldos3ra.push(ing !== 0 ? Number(((saldos3ra / ing) * 100).toFixed(2)) : 0);
+            });
+
+            // Actualizar todos los gráficos en batch
+            requestAnimationFrame(() => {
+                // Gráfico 1
+                charts.c1.data.labels = labels;
+                charts.c1.data.datasets[0].data = dataIngreso;
+                charts.c1.data.datasets[1].data = dataDiferencia;
+                charts.c1.data.datasets[2].data = dataPorcentaje;
+                ajustarEjeY1(charts.c1, dataPorcentaje, -0.3);
+
+                // Gráfico 2
+                charts.c2.data.labels = labels;
+                charts.c2.data.datasets[0].data = dataSaldos2da;
+                charts.c2.data.datasets[1].data = dataPorcSaldos2da;
+                ajustarEjeX1(charts.c2, dataPorcSaldos2da, -0.3);
+
+                // Gráfico 3
+                if (charts.c3) {
+                    charts.c3.data.labels = labels;
+                    charts.c3.data.datasets[0].data = dataSaldos3ra;
+                    charts.c3.data.datasets[1].data = dataPorcSaldos3ra;
+                    ajustarEjeX1(charts.c3, dataPorcSaldos3ra, -5);
+                }
+
+                // Gráfico 5
+                charts.c5.data.labels = labels;
+                charts.c5.data.datasets[0].data = dataSaldos1ra;
+                charts.c5.data.datasets[1].data = dataPorcSaldos1ra;
+                ajustarEjeX1(charts.c5, dataPorcSaldos1ra, -5);
+
+                // Actualizar todos los gráficos una sola vez
+                charts.c1.update('none'); // 'none' evita animaciones para mayor velocidad
+                charts.c2.update('none');
+                if (charts.c3) charts.c3.update('none');
+                charts.c5.update('none');
+                
+                // Actualizar leyenda
+                try { renderChart1Legend(); } catch(e) { console.warn('Error renderizando leyenda', e); }
+            });
+        }
+        
+        // Helper para ajustar eje Y secundario
+        function ajustarEjeY1(chart, data, minVal) {
+            try {
+                const maxPorc = data.length ? Math.max(...data.map(v => Number(v) || 0)) : 0;
+                const suggestedMax = maxPorc > 0 ? maxPorc * 1.25 : 1;
+                if (!chart.options.scales.y1) chart.options.scales.y1 = {};
+                chart.options.scales.y1.max = Math.round(suggestedMax * 100) / 100;
+                chart.options.scales.y1.min = minVal;
+            } catch (e) {
+                console.warn('Error ajustando eje y1', e);
+            }
+        }
+        
+        // Helper para ajustar eje X secundario (gráficos horizontales)
+        function ajustarEjeX1(chart, data, minVal) {
+            try {
+                const maxPorc = data.length ? Math.max(...data.map(v => Number(v) || 0)) : 0;
+                const suggestedMax = maxPorc > 0 ? maxPorc * 1.25 : 1;
+                if (!chart.options.scales.x1) chart.options.scales.x1 = {};
+                chart.options.scales.x1.max = Math.round(suggestedMax * 100) / 100;
+                chart.options.scales.x1.min = minVal;
+                if (!chart.options.scales.x) chart.options.scales.x = {};
+                chart.options.scales.x.max = 20000;
+                chart.options.scales.x.min = 0;
+            } catch (e) {
+                console.warn('Error ajustando eje x1', e);
+            }
+        }
+
+        async function cargarDatosClientes() {
+            // Verificar si tenemos datos en caché válidos
+            const now = Date.now();
+            if (cache.clientes && cache.timestamp && (now - cache.timestamp) < cache.TTL) {
+                actualizarTablaClientes(cache.clientes);
+                actualizarGraficoClientes(cache.clientes);
+                return;
+            }
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: "follow",
+                    credentials: 'omit',
+                    signal: controller.signal,
+                    body: JSON.stringify({ action: 'getClienteData' })
+                });
+                
+                clearTimeout(timeoutId);
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data) {
+                    // Ordenar por %Saldo 1ra descendente antes de renderizar
+                    result.data.sort((a,b) => (b.porcentajeSaldo1ra || 0) - (a.porcentajeSaldo1ra || 0));
+                    
+                    // Guardar en caché
+                    cache.clientes = result.data;
+                    if (!cache.timestamp) cache.timestamp = now;
+                    
+                    actualizarTablaClientes(result.data);
+                    actualizarGraficoClientes(result.data);
+                } else {
+                    console.error("Error al cargar datos de clientes:", result.message);
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.warn("Timeout al cargar datos de clientes");
+                } else {
+                    console.error("Error de conexión al cargar datos de clientes:", error);
+                }
+            }
+        }
+
+        function actualizarTablaClientes(data) {
+            const tbody = document.getElementById('tablaClientesBody');
+            const periodo = document.getElementById('clientePeriodo');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-2 text-center text-gray-400">No hay datos disponibles</td></tr>';
+                periodo.textContent = '';
+                return;
+            }
+
+            // Mostrar periodo en el encabezado
+            if (data[0].anio && data[0].mes) {
+                periodo.textContent = `${data[0].mes} ${data[0].anio}`;
+            }
+
+            // Calcular totales
+            const totals = data.reduce((acc, row) => {
+                acc.prendasPedido += Number(row.prendasPedido) || 0;
+                acc.prendasIngresoNeto += Number(row.prendasIngresoNeto) || 0;
+                acc.saldos1ra += Number(row.saldos1ra) || 0;
+                return acc;
+            }, { prendasPedido: 0, prendasIngresoNeto: 0, saldos1ra: 0 });
+
+            const totalPorc = totals.prendasIngresoNeto ? (totals.saldos1ra / totals.prendasIngresoNeto) * 100 : 0;
+
+            // Generar filas usando DocumentFragment para mejor rendimiento
+            const fragment = document.createDocumentFragment();
+            const formatter = new Intl.NumberFormat('es-PE');
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-gray-50';
+                const porcSaldo = row.porcentajeSaldo1ra || 0;
+                
+                tr.innerHTML = `
+                    <td class="py-0.5 px-2">${row.cliente || ''}</td>
+                    <td class="py-0.5 px-2 text-right">${formatter.format(row.prendasPedido || 0)}</td>
+                    <td class="py-0.5 px-2 text-right">${formatter.format(row.prendasIngresoNeto || 0)}</td>
+                    <td class="py-0.5 px-2 text-right">${formatter.format(row.saldos1ra || 0)}</td>
+                    <td class="py-0.5 px-2 text-right font-semibold">${porcSaldo.toFixed(2)}%</td>
+                `;
+                fragment.appendChild(tr);
+            });
+
+            // Fila total
+            const totalTr = document.createElement('tr');
+            totalTr.className = 'bg-gray-800 text-white font-bold';
+            totalTr.innerHTML = `
+                <td class="py-0.5 px-2">TOTAL</td>
+                <td class="py-0.5 px-2 text-right">${formatter.format(totals.prendasPedido)}</td>
+                <td class="py-0.5 px-2 text-right">${formatter.format(totals.prendasIngresoNeto)}</td>
+                <td class="py-0.5 px-2 text-right">${formatter.format(totals.saldos1ra)}</td>
+                <td class="py-0.5 px-2 text-right">${totalPorc.toFixed(2)}%</td>
+            `;
+            fragment.appendChild(totalTr);
+
+            // Actualizar DOM una sola vez
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+        }
+
+        function actualizarGraficoClientes(data) {
+            if (!charts.clientes || !data || data.length === 0) return;
+
+            const labels = data.map(row => row.cliente || '');
+            const prendasIngreso = data.map(row => row.prendasIngresoNeto || 0);
+            const porcSaldos = data.map(row => row.porcentajeSaldo1ra || 0);
+
+            // Actualizar en batch usando requestAnimationFrame
+            requestAnimationFrame(() => {
+                charts.clientes.data.labels = labels;
+                charts.clientes.data.datasets[0].data = prendasIngreso;
+                charts.clientes.data.datasets[1].data = porcSaldos;
+
+                // Ajustar máximo del eje secundario
+                try {
+                    const maxPorc = porcSaldos.length ? Math.max(...porcSaldos.map(v => Number(v) || 0)) : 0;
+                    const suggestedMax = maxPorc > 0 ? maxPorc * 1.25 : 1;
+                    if (!charts.clientes.options.scales.y1) charts.clientes.options.scales.y1 = {};
+                    charts.clientes.options.scales.y1.max = Math.round(suggestedMax * 100) / 100;
+                    charts.clientes.options.scales.y1.min = -5;
+                } catch (e) {
+                    console.warn('No se pudo ajustar max del eje y1 en chartClientes', e);
+                }
+
+                charts.clientes.update('none');
+            });
+        }
+    </script>
+</body>
+</html>
