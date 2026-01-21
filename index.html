@@ -16,7 +16,17 @@
     
     <style>
         .filter-select {
-            @apply border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 font-medium;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            color: #374151;
+            font-weight: 500;
+        }
+        .filter-select:focus {
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.08);
+            border-color: #3B82F6;
         }
         .loader-overlay {
             background: rgba(255, 255, 255, 0.7);
@@ -26,6 +36,9 @@
         canvas {
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;
+            /* Garantizar que los contenedores de los charts mantengan tamaño
+               antes de que Chart.js los inicialice para evitar saltos de layout */
+            min-height: 220px !important;
         }
         /* Indicador de estado */
         .status-indicator {
@@ -42,12 +55,38 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        /* Estilos para tabs */
+        .tab-button {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            background-color: #f3f4f6;
+            color: #4b5563;
+            border: none;
+            cursor: pointer;
+        }
+        .tab-button:hover {
+            background-color: #e5e7eb;
+        }
+        .tab-button.active {
+            background-color: #2563eb;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .tab-content {
+            display: none !important;
+        }
+        .tab-content.active {
+            display: flex !important;
+        }
     </style>
 </head>
 <body class="bg-slate-100 h-screen w-screen overflow-hidden flex flex-col p-4 font-sans relative">
 
     <!-- Loader General -->
-    <div id="mainLoader" class="loader-overlay absolute inset-0 z-50 flex flex-col items-center justify-center hidden">
+    <div id="mainLoader" class="loader-overlay absolute inset-0 z-50 flex flex-col items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl p-6 flex flex-col items-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-3"></div>
             <p id="loaderText" class="text-blue-600 font-bold">Cargando datos...</p>
@@ -57,17 +96,31 @@
 
     <!-- BLOQUE SUPERIOR: Título y Filtros -->
     <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white p-2 rounded-lg">
-                <i class="fa-solid fa-chart-line text-xl"></i>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Indicadores de Liquidación</h1>
-                <div id="connectionStatus" class="text-xs text-gray-500 flex items-center">
-                    <span>Estado: </span>
-                    <span id="statusText" class="ml-1 font-medium">Listo</span>
-                    <span id="statusDot" class="status-indicator status-success"></span>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg">
+                    <i class="fa-solid fa-chart-line text-xl"></i>
                 </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Indicadores de Liquidación</h1>
+                    <div id="connectionStatus" class="text-xs text-gray-500 flex items-center">
+                        <span>Estado: </span>
+                        <span id="statusText" class="ml-1 font-medium">Listo</span>
+                        <span id="statusDot" class="status-indicator status-success"></span>
+                    </div>
+                </div>
+            </div>
+            <!-- Tabs de navegación -->
+            <div class="flex items-center gap-2 ml-4 border-l pl-4 border-gray-300">
+                <button id="tabPdsRegularizar" class="tab-button active" onclick="switchTab('pdsRegularizar')">
+                    <i class="fa-solid fa-chart-column mr-1"></i>Pds por regularizar
+                </button>
+                <button id="tabSaldos" class="tab-button" onclick="switchTab('saldos')">
+                    <i class="fa-solid fa-layer-group mr-1"></i>Saldos
+                </button>
+                <button id="tabSaldo1raCliente" class="tab-button" onclick="switchTab('saldo1raCliente')">
+                    <i class="fa-solid fa-users mr-1"></i>Saldo 1ra x Cliente
+                </button>
             </div>
         </div>
 
@@ -111,76 +164,242 @@
         </div>
     </div>
 
-    <!-- BLOQUE INFERIOR: Grilla -->
-    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 grid-rows-2 gap-4 min-h-0">
-        
-        <!-- Gráfico 1: Ingreso Neto vs %Diferencia (arriba izquierda) -->
-        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative">
+    <!-- BLOQUE INFERIOR: Contenido con Tabs -->
+    
+    <!-- Tab 1: Pds por regularizar -->
+    <div id="contentPdsRegularizar" class="tab-content active flex-1 flex flex-col gap-1 min-h-0">
+        <!-- Gráfico 1: Ingreso Neto vs %Diferencia -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative min-h-0" style="flex: 0 0 60%;">
             <div class="flex items-start justify-between mb-2">
                 <h3 id="chart1Title" class="text-gray-600 font-bold">Ingresos vs Liquidación</h3>
                 <div id="chart1Legend" class="flex items-center gap-4"></div>
             </div>
-            <div class="flex-1 w-full min-h-0 relative"><canvas id="chart1"></canvas></div>
+            <div class="flex-1 w-full min-h-0 relative"><canvas id="chart1" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
         </div>
+            <!-- Bloque Acciones: tabla tomada desde la hoja 'acciones' filtrada por columna 'Pestaña' -->
+            <div id="accionesBlock" class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 mt-1 flex flex-col min-h-0" style="flex: 0 0 30%;">
+                <div class="flex items-center justify-between mb-2">
+                <h3 class="text-gray-600 font-bold">Acciones</h3>
+                <div id="accionesFilterInfo" class="text-xs text-gray-500"></div>
+            </div>
+                <div class="overflow-auto h-full">
+                    <table id="tablaAcciones" class="w-full text-sm">
+                        <thead id="tablaAccionesHead" class="bg-gray-800 sticky top-0 text-white text-xs font-bold"></thead>
+                        <tbody id="tablaAccionesBody" class="text-gray-700">
+                            <tr><td colspan="4" class="py-2 text-center text-gray-400">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="accionesColWidths" class="text-xs text-gray-500 mt-2"></div>
+                </div>
+            </div>
+    </div>
 
-        <!-- Detalle por Cliente de Saldos 1ra: Tabla + Gráfico (derecha, abarca 2 filas) -->
-        <div class="bg-white rounded-xl shadow-sm p-2 border border-gray-200 flex flex-col relative md:row-span-2 gap-0">
+    <!-- Tab 2: Saldos -->
+    <div id="contentSaldos" class="tab-content flex-1 flex flex-row gap-4 min-h-0 overflow-hidden">
+        <!-- Bloque 1: Saldos 1ra -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative min-h-0" style="flex: 1 1 33%;">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-gray-700 font-bold text-base flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold">1</span>
+                    Saldos 1ra
+                </h3>
+                <span class="text-xs text-gray-400 font-medium">Ingreso Neto vs %Saldo</span>
+            </div>
+            <div class="flex-1 w-full min-h-0 relative">
+                <canvas id="chart5" style="width:100% !important; height:100% !important; display:block;"></canvas>
+            </div>
+        </div>
+        
+        <!-- Bloque 2: Saldos 2da -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative min-h-0" style="flex: 1 1 33%;">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-gray-700 font-bold text-base flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 text-amber-600 text-sm font-bold">2</span>
+                    Saldos 2da
+                </h3>
+                <span class="text-xs text-gray-400 font-medium">Ingreso Neto vs %Saldo</span>
+            </div>
+            <div class="flex-1 w-full min-h-0 relative">
+                <canvas id="chart2" style="width:100% !important; height:100% !important; display:block;"></canvas>
+            </div>
+        </div>
+        
+        <!-- Bloque 3: Saldos 3ra -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative min-h-0" style="flex: 1 1 33%;">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-gray-700 font-bold text-base flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-100 text-red-600 text-sm font-bold">3</span>
+                    Saldos 3ra
+                </h3>
+                <span class="text-xs text-gray-400 font-medium">Ingreso Neto vs %Saldo</span>
+            </div>
+            <div class="flex-1 w-full min-h-0 relative">
+                <canvas id="chart3" style="width:100% !important; height:100% !important; display:block;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: Saldo 1ra x Cliente -->
+    <div id="contentSaldo1raCliente" class="tab-content flex-1 flex flex-col gap-4 min-h-0">
+        <!-- Detalle por Cliente de Saldos 1ra: Tabla + Gráfico -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative gap-2">
             <div class="flex items-center justify-between mb-0">
                 <h3 class="text-gray-600 font-bold">Detalle por Cliente de Saldos 1ra</h3>
                 <span id="clientePeriodo" class="text-xs text-gray-500 font-medium"></span>
             </div>
             
-            <!-- Tabla de clientes (45% altura) -->
-            <div class="w-full overflow-auto min-h-0" style="flex: 0 0 45%;">
-                <table id="tablaClientes" class="w-full text-sm">
-                    <thead class="bg-gray-800 sticky top-0">
-                        <tr class="text-left text-xs font-bold text-white">
-                            <th class="py-0.5 px-2 border-b">Cliente</th>
-                            <th class="py-0.5 px-2 border-b text-right">Prendas Pedido</th>
-                            <th class="py-0.5 px-2 border-b text-right">Prendas Ingreso Neto</th>
-                            <th class="py-0.5 px-2 border-b text-right">Saldos 1ra</th>
-                            <th class="py-0.5 px-2 border-b text-right">%Saldo 1ra</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaClientesBody" class="text-gray-700">
-                        <tr><td colspan="5" class="py-1 text-center text-gray-400">Cargando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+            <!-- Contenedor flex para tabla y gráfico lado a lado -->
+            <div class="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
+                <!-- Tabla de clientes (50% ancho en desktop) -->
+                <div class="w-full md:w-1/2 overflow-auto min-h-0 max-h-full">
+                    <table id="tablaClientes" class="w-full text-sm">
+                        <thead class="bg-gray-800 sticky top-0">
+                            <tr class="text-left text-xs font-bold text-white">
+                                <th class="py-2 px-2 border-b">Cliente</th>
+                                <th class="py-2 px-2 border-b">Tipo</th>
+                                <th class="py-2 px-2 border-b text-right">Prendas Pedido</th>
+                                <th class="py-2 px-2 border-b text-right">Prendas Ingreso Neto</th>
+                                <th class="py-2 px-2 border-b text-right">Saldos 1ra</th>
+                                <th class="py-2 px-2 border-b text-right">%Saldo 1ra</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaClientesBody" class="text-gray-700">
+                            <tr><td colspan="6" class="py-2 text-center text-gray-400">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
-            <!-- Gráfico de clientes (55% altura, pegado a la tabla) -->
-            <div class="w-full min-h-0 relative -mt-1" style="flex: 0 0 55%;"><canvas id="chartClientes" style="display:block; width:100% !important; height:100% !important;"></canvas></div>
-        </div>
-
-        <!-- Gráfico 2: Evolución de Diferencias - 3 Columnas (abajo izquierda) -->
-        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative">
-            <h3 id="chartEvoTitle" class="text-gray-600 font-bold mb-1">Ingreso Neto vs %Saldos</h3>
-            <div class="flex-1 w-full min-h-0 flex gap-2 items-stretch overflow-hidden">
-                <!-- Columna 1: Saldos 1ra (40%) -->
-                <div class="flex flex-col min-w-0" style="flex: 0 0 40%;">
-                    <h4 class="text-sm font-semibold text-gray-500 mb-0">Saldos 1ra</h4>
-                    <div class="flex-1 relative min-w-0 min-h-0 px-0"><canvas id="chart5" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
-                </div>
-                <!-- Columna 2: Saldos 2da (30%) -->
-                <div class="flex flex-col min-w-0" style="flex: 0 0 30%;">
-                    <h4 class="text-sm font-semibold text-gray-500 mb-0">Saldos 2da</h4>
-                    <div class="flex-1 relative min-w-0 min-h-0 px-0"><canvas id="chart2" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
-                </div>
-                <!-- Columna 3: Saldos 3ra (30%) -->
-                <div class="flex flex-col min-w-0" style="flex: 0 0 30%;">
-                    <h4 class="text-sm font-semibold text-gray-500 mb-0">Saldos 3ra</h4>
-                    <div class="flex-1 relative min-w-0 min-h-0 px-0"><canvas id="chart3" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
-                </div>
+                <!-- Gráfico de clientes (50% ancho en desktop) -->
+                <div class="w-full md:w-1/2 min-h-0 relative" style="min-height: 300px;"><canvas id="chartClientes" style="display:block; width:100% !important; height:100% !important;"></canvas></div>
             </div>
         </div>
-
     </div>
 
     <script>
         // URL proporcionada por el usuario
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVNAnUEe4_9WjJ6BplSfBi_oI6ZjeQDFeEnA7JOrmXGrRl_Fz81pmRsDZW-MgZzhUdTg/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtAS-n3FikPNCC-3zjDuyzC8YKoD0NcVvy5UgWtCzsHjX6JOBiwu8otfBeViNa6lercw/exec";
+
+        // Función para cambiar entre pestañas
+        function switchTab(tabName) {
+            // Ocultar todos los contenidos
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Desactivar todos los botones de tab
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Activar el contenido y botón correspondiente
+            if (tabName === 'pdsRegularizar') {
+                document.getElementById('contentPdsRegularizar').classList.add('active');
+                document.getElementById('tabPdsRegularizar').classList.add('active');
+                // Forzar redimensionamiento del gráfico
+                setTimeout(() => {
+                    if (charts.c1) charts.c1.resize();
+                }, 50);
+            } else if (tabName === 'saldos') {
+                document.getElementById('contentSaldos').classList.add('active');
+                document.getElementById('tabSaldos').classList.add('active');
+                // Forzar redimensionamiento de los gráficos
+                setTimeout(() => {
+                    if (charts.c5) charts.c5.resize();
+                    if (charts.c2) charts.c2.resize();
+                    if (charts.c3) charts.c3.resize();
+                }, 50);
+            } else if (tabName === 'saldo1raCliente') {
+                document.getElementById('contentSaldo1raCliente').classList.add('active');
+                document.getElementById('tabSaldo1raCliente').classList.add('active');
+                // Forzar redimensionamiento del gráfico
+                setTimeout(() => {
+                    if (charts.clientes) charts.clientes.resize();
+                }, 50);
+            }
+
+        }
+
+        // Añadir/Remover botones Guardar / Cancelar junto al '+'
+        function addSaveCancelButtons(tr, columns) {
+            const info = document.getElementById('accionesFilterInfo');
+            if (!info) return;
+            // evitar duplicados
+            removeSaveCancelButtons();
+
+            const btnGuardar = document.createElement('button');
+            btnGuardar.id = 'btnGuardarAccion';
+            btnGuardar.className = 'ml-2 inline-flex items-center gap-2 px-3 py-1 rounded bg-green-600 text-white';
+            btnGuardar.textContent = 'Guardar';
+            btnGuardar.addEventListener('click', async () => {
+                // validar campos: todos los td (excepto pestaña que no existe) deben tener valor
+                const cells = Array.from(tr.querySelectorAll('td'));
+                const dataOk = cells.every(td => {
+                    const input = td.querySelector('input[type="date"]');
+                    const v = input ? (input.value || '') : (td.textContent || '').trim();
+                    return String(v).trim() !== '';
+                });
+                if (!dataOk) {
+                    alert('Por favor complete todos los campos antes de guardar.');
+                    return;
+                }
+
+                const confirmed = await showConfirm('¿Quiere registrar la Acción?');
+                if (confirmed) {
+                    attemptSaveAccion(tr, columns);
+                }
+            });
+
+            const btnCancelar = document.createElement('button');
+            btnCancelar.id = 'btnCancelarAccion';
+            btnCancelar.className = 'ml-2 inline-flex items-center gap-2 px-3 py-1 rounded bg-gray-300 text-gray-700';
+            btnCancelar.textContent = 'Cancelar';
+            btnCancelar.addEventListener('click', () => {
+                tr.remove();
+                removeSaveCancelButtons();
+            });
+
+            info.appendChild(btnGuardar);
+            info.appendChild(btnCancelar);
+        }
+
+        function removeSaveCancelButtons() {
+            const btnG = document.getElementById('btnGuardarAccion');
+            const btnC = document.getElementById('btnCancelarAccion');
+            if (btnG) btnG.remove();
+            if (btnC) btnC.remove();
+        }
+
+        // Modal confirm returning Promise<boolean>
+        function showConfirm(message) {
+            return new Promise(resolve => {
+                // crear overlay
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed'; overlay.style.inset = '0'; overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center'; overlay.style.zIndex = 9999;
+                overlay.style.background = 'rgba(0,0,0,0.4)';
+
+                const box = document.createElement('div');
+                box.style.background = 'white'; box.style.borderRadius = '8px'; box.style.padding = '18px'; box.style.minWidth = '320px';
+                box.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+
+                const msg = document.createElement('div'); msg.textContent = message; msg.style.marginBottom = '12px';
+                const btnRow = document.createElement('div'); btnRow.style.display = 'flex'; btnRow.style.justifyContent = 'flex-end'; btnRow.style.gap = '8px';
+
+                const noBtn = document.createElement('button'); noBtn.textContent = 'No'; noBtn.className = 'px-3 py-1 rounded bg-gray-200';
+                const yesBtn = document.createElement('button'); yesBtn.textContent = 'Si'; yesBtn.className = 'px-3 py-1 rounded bg-blue-600 text-white';
+
+                noBtn.addEventListener('click', () => { overlay.remove(); resolve(false); });
+                yesBtn.addEventListener('click', () => { overlay.remove(); resolve(true); });
+
+                btnRow.appendChild(noBtn); btnRow.appendChild(yesBtn);
+                box.appendChild(msg); box.appendChild(btnRow);
+                overlay.appendChild(box);
+                document.body.appendChild(overlay);
+            });
+        }
         
         let charts = {};
+        let isSavingAccion = false;
         const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
         
         // Caché para optimizar llamadas repetidas
@@ -216,7 +435,10 @@
             return new Intl.NumberFormat('es-PE').format(n);
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Cargar años en segundo plano sin bloquear
+            cargarAniosDesdeBase().catch(e => console.warn('Error cargando años:', e));
+            
             establecerFechasPorDefecto();
             initCharts();
             cargarDatosIniciales(); // Carga paralela optimizada
@@ -236,32 +458,93 @@
             });
         });
         
-        // Cargar datos iniciales en paralelo
+        // Cargar datos iniciales de forma optimizada
         async function cargarDatosIniciales() {
             const loading = document.getElementById('mainLoader');
+            const loaderText = document.getElementById('loaderText');
             loading.classList.remove('hidden');
             setConnectionStatus('loading', 'Cargando...');
             
             try {
-                // Ejecutar ambas llamadas en paralelo para mayor velocidad
-                await Promise.all([
-                    actualizarGraficos(true),
-                    cargarDatosClientes()
-                ]);
+                // PRIORIDAD 1: Cargar primero los gráficos principales (lo más importante)
+                loaderText.textContent = 'Cargando gráficos...';
+                await actualizarGraficos(true);
+                
+                // Ocultar loader principal ya que los gráficos están listos
+                loading.classList.add('hidden');
                 setConnectionStatus('success', 'Conectado');
+                
+                // PRIORIDAD 2: Cargar tablas secundarias en segundo plano (no bloquean)
+                loaderText.textContent = 'Cargando datos adicionales...';
+                Promise.all([
+                    cargarDatosClientes().catch(e => console.warn('Error cargando clientes:', e)),
+                    cargarAcciones().catch(e => console.warn('Error cargando acciones:', e))
+                ]).then(() => {
+                    console.log('Todos los datos cargados completamente');
+                }).catch(error => {
+                    console.error("Error en carga secundaria:", error);
+                });
+                
             } catch (error) {
                 console.error("Error en carga inicial:", error);
                 setConnectionStatus('error', 'Error de conexión');
-            } finally {
                 loading.classList.add('hidden');
+            }
+        }
+
+        // Cargar años disponibles desde la hoja 'base' (servidor) y poblar selects
+        async function cargarAniosDesdeBase() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                const resp = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    credentials: 'omit',
+                    signal: controller.signal,
+                    body: JSON.stringify({ action: 'getAvailableYears' })
+                });
+
+                clearTimeout(timeoutId);
+                const result = await resp.json();
+                if (result.status === 'success' && Array.isArray(result.data)) {
+                    const years = result.data;
+                    const desdeSel = document.getElementById('desdeAnio');
+                    const hastaSel = document.getElementById('hastaAnio');
+                    if (!desdeSel || !hastaSel) return;
+
+                    // Limpiar opciones actuales
+                    desdeSel.innerHTML = '';
+                    hastaSel.innerHTML = '';
+
+                    // Asegurar que sean únicos y ordenados
+                    const unique = Array.from(new Set(years.map(y => String(y))));
+                    unique.forEach(y => {
+                        const o1 = document.createElement('option'); o1.value = y; o1.textContent = y;
+                        const o2 = document.createElement('option'); o2.value = y; o2.textContent = y;
+                        desdeSel.appendChild(o1);
+                        hastaSel.appendChild(o2);
+                    });
+
+                    // Si no se obtuvo ningún año, mantener las opciones estáticas existentes
+                    if (unique.length === 0) {
+                        // dejar tal cual; no hacer nada
+                    }
+                } else {
+                    console.warn('No se obtuvieron años desde el servidor:', result && result.message);
+                }
+            } catch (e) {
+                if (e.name === 'AbortError') console.warn('Timeout cargando años');
+                else console.error('Error cargando años:', e);
             }
         }
 
         function establecerFechasPorDefecto() {
             const hoy = new Date();
             const fechaHasta = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-            // Mostrar 7 meses en el filtro: desde = hasta - 6 meses
-            const fechaDesde = new Date(fechaHasta.getFullYear(), fechaHasta.getMonth() - 6, 1);
+            // Mostrar 9 meses en el filtro: desde = hasta - 8 meses
+            const fechaDesde = new Date(fechaHasta.getFullYear(), fechaHasta.getMonth() - 8, 1);
 
             document.getElementById('hastaAnio').value = fechaHasta.getFullYear();
             document.getElementById('hastaMes').value = fechaHasta.getMonth();
@@ -359,6 +642,45 @@
         }
 
         function initCharts() {
+            // Función helper para dibujar texto con formato especial para la parte [$##]
+            const drawFormattedText = (ctx, text, x, y, fontSize, isRight = false) => {
+                const match = text.match(/^(.+?)\s*\[\$(.+?)\]$/);
+                if (match) {
+                    const mainPart = match[1];
+                    const smallPart = '[$' + match[2] + ']';
+                    
+                    // Medir el texto principal (en negritas)
+                    const mainMetrics = ctx.measureText(mainPart);
+                    const mainWidth = mainMetrics.width;
+                    
+                    // Cambiar a fuente más pequeña y no negritas para la parte pequeña
+                    const smallFontSize = fontSize - 1;
+                    const currentFont = ctx.font;
+                    ctx.font = smallFontSize + 'px ' + currentFont.split('px')[1];
+                    
+                    const smallMetrics = ctx.measureText(smallPart);
+                    const smallWidth = smallMetrics.width;
+                    
+                    // Dibujar ambas partes
+                    if (isRight) {
+                        // Alineado a la derecha: pequeño + principal
+                        ctx.fillText(smallPart, x - mainWidth - 2, y);
+                        ctx.font = currentFont; // Restaurar font negritas
+                        ctx.fillText(mainPart, x - smallWidth - 4, y);
+                    } else {
+                        // Alineado a la izquierda: principal + pequeño
+                        ctx.font = currentFont; // Restaurar font negritas
+                        ctx.fillText(mainPart, x, y);
+                        ctx.font = smallFontSize + 'px ' + currentFont.split('px')[1];
+                        ctx.fillText(smallPart, x + mainWidth + 2, y);
+                    }
+                    
+                    ctx.font = currentFont; // Restaurar font original
+                } else {
+                    ctx.fillText(text, x, y);
+                }
+            };
+            
             // Plugin para mostrar etiquetas en la base de las barras (3px entre eje X y dato)
             const barBaseLabelPlugin = {
                 id: 'barBaseLabels',
@@ -395,6 +717,17 @@
                             let text = value;
                             if (typeof value === 'number') {
                                 text = new Intl.NumberFormat('es-PE').format(value);
+                                
+                                // Agregar cálculo ×12 para gráficos de Saldos (chart5, chart2, chart3)
+                                const chartId = chart && chart.canvas && chart.canvas.id;
+                                const isSaldoChart = ['chart5', 'chart2', 'chart3'].includes(chartId);
+                                const isSaldoDataset = dataset.label && dataset.label.toLowerCase().includes('saldos');
+                                
+                                if (isSaldoChart && isSaldoDataset) {
+                                    const valueMultiplied = value * 12;
+                                    const multipliedText = new Intl.NumberFormat('es-PE').format(valueMultiplied);
+                                    text = text + 'pds [$' + multipliedText + ']';
+                                }
                             }
 
                             const isIngresoNeto = dataset.label && dataset.label.toLowerCase().includes('ingreso');
@@ -411,19 +744,10 @@
                                 const startX = Math.min(x, base);
                                 const endX = Math.max(x, base);
 
-                                // Si el chart es chart2 o chart3 queremos la etiqueta al final de la barra (a la derecha)
-                                const chartId = chart && chart.canvas && chart.canvas.id;
-                                const rightLabelCharts = ['chart2', 'chart3'];
-
-                                // Si está en la lista, colocamos la etiqueta al final de la barra con 1px de padding
+                                // Por defecto colocamos la etiqueta cerca de la base (comportamiento de "Saldos 1ra").
+                                // Evitamos forzar que chart2/chart3 estén a la derecha para que coincidan con chart5.
                                 const desiredPadding = 1; // px entre barra y etiqueta
-                                let labelX;
-                                if (rightLabelCharts.includes(chartId)) {
-                                    labelX = endX + desiredPadding;
-                                } else {
-                                    // comportamiento por defecto: cerca de la base
-                                    labelX = startX + padding + 2;
-                                }
+                                const labelX = startX + padding + 2;
 
                                 // Si hay múltiples datasets de barra, desplazamos ligeramente en Y para evitar solapamiento
                                 const stackSpacing = fontSize + 4;
@@ -456,12 +780,12 @@
                                         ctx.fillStyle = (options && options.color) || '#111827';
                                         ctx.textAlign = 'right';
                                         ctx.textBaseline = 'middle';
-                                        ctx.fillText(text, insideX - 2, labelY);
+                                        drawFormattedText(ctx, text, insideX - 2, labelY, fontSize, true);
                                     } else {
                                         ctx.fillStyle = (options && options.color) || '#374151';
                                         ctx.textAlign = 'right';
                                         ctx.textBaseline = 'middle';
-                                        ctx.fillText(text, insideX - 2, labelY);
+                                        drawFormattedText(ctx, text, insideX - 2, labelY, fontSize, true);
                                     }
                                 } else {
                                     // Dibujar fuera a la derecha con 1px padding
@@ -480,12 +804,12 @@
                                         ctx.fillStyle = (options && options.color) || '#111827';
                                         ctx.textAlign = 'left';
                                         ctx.textBaseline = 'middle';
-                                        ctx.fillText(text, labelX, labelY);
+                                        drawFormattedText(ctx, text, labelX, labelY, fontSize, false);
                                     } else {
                                         ctx.fillStyle = (options && options.color) || '#374151';
                                         ctx.textAlign = 'left';
                                         ctx.textBaseline = 'middle';
-                                        ctx.fillText(text, labelX, labelY);
+                                        drawFormattedText(ctx, text, labelX, labelY, fontSize, false);
                                     }
                                 }
                             } else {
@@ -514,10 +838,10 @@
                                         ctx.fill();
 
                                         ctx.fillStyle = (options && options.color) || '#111827';
-                                        ctx.fillText(text, x, y);
+                                        drawFormattedText(ctx, text, x, y, fontSize, false);
                                     } else {
                                         ctx.fillStyle = (options && options.color) || '#374151';
-                                        ctx.fillText(text, x, y);
+                                        drawFormattedText(ctx, text, x, y, fontSize, false);
                                     }
                                 }
                             }
@@ -567,7 +891,7 @@
                                 const xLabel = x;
                                 if (xLabel >= chartArea.left && xLabel <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
                                     ctx.fillStyle = (options && options.lineColor) || '#ef4444';
-                                    ctx.fillText(text, xLabel, y);
+                                    drawFormattedText(ctx, text, xLabel, y, fontSize, false);
                                 }
                             } else {
                                 // Default: etiqueta a la derecha del punto
@@ -578,7 +902,7 @@
                                 const xLabel = x + horizOffset + (positionOffset * 6);
                                 if (xLabel >= chartArea.left && xLabel <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
                                     ctx.fillStyle = (options && options.lineColor) || '#111827';
-                                    ctx.fillText(text, xLabel, y);
+                                    drawFormattedText(ctx, text, xLabel, y, fontSize, false);
                                 }
                             }
                         });
@@ -597,7 +921,6 @@
                 plugins: { 
                     legend: { 
                         position: 'bottom'
-                        // Eliminado onClick manual para restaurar comportamiento nativo de Chart.js
                     } 
                 },
                 scales: { y: { beginAtZero: true } }
@@ -647,7 +970,7 @@
                                 }
                             }
                         },
-                        scales: {
+                    scales: {
                         y: { 
                             position: 'left',
                             ticks: { callback: val => formatShortNumber(val) }
@@ -657,7 +980,7 @@
                             display: false,
                             grid: { display: false }
                         }
-                        }
+                    }
                 }
             });
 
@@ -668,9 +991,9 @@
                 data: {
                     labels: [],
                     datasets: [
-                        { label: 'Saldos 2da', data: [], backgroundColor: '#ef4444', borderRadius: 3, yAxisID: 'y' },
-                        { label: '%Saldos 2da', data: [], type: 'line', borderColor: '#f97316', backgroundColor: '#f97316', xAxisID: 'x1', order: 0 }
-                    ]
+                            { label: 'Saldos 2da', data: [], backgroundColor: '#fdba74', borderRadius: 3, yAxisID: 'y' },
+                            { label: '%Saldos 2da', data: [], type: 'line', borderColor: '#fdba74', backgroundColor: '#fdba74', pointBackgroundColor: '#fdba74', pointBorderColor: '#fdba74', xAxisID: 'x1', order: 0 }
+                        ]
                 },
                 options: {
                     indexAxis: 'y',
@@ -700,12 +1023,12 @@
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, display: false, grid: { display: false } },
+                        y: { beginAtZero: true, display: true, ticks: { color: '#374151' }, grid: { color: '#e6e6e6' } },
                         x: {
                             beginAtZero: true,
                             min: 0,
                             max: 20000,
-                            ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000 },
+                            ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000, font: { weight: 'bold' } },
                             grid: { color: '#e6e6e6' }
                         },
                         x1: {
@@ -725,8 +1048,8 @@
                 data: {
                     labels: [],
                     datasets: [
-                        { label: 'Saldos 3ra', data: [], backgroundColor: '#06b6d4', borderRadius: 3, yAxisID: 'y' },
-                        { label: '%Saldos 3ra', data: [], type: 'line', borderColor: '#0ea5a4', backgroundColor: '#0ea5a4', xAxisID: 'x1', order: 0 }
+                        { label: 'Saldos 3ra', data: [], backgroundColor: '#fecaca', borderRadius: 3, yAxisID: 'y' },
+                        { label: '%Saldos 3ra', data: [], type: 'line', borderColor: '#fecaca', backgroundColor: '#fecaca', pointBackgroundColor: '#fecaca', pointBorderColor: '#fecaca', xAxisID: 'x1', order: 0 }
                     ]
                 },
                 options: {
@@ -755,12 +1078,12 @@
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, display: false, grid: { display: false } },
+                        y: { beginAtZero: true, display: true, ticks: { color: '#374151' }, grid: { color: '#e6e6e6' } },
                         x: {
                             beginAtZero: true,
                             min: 0,
                             max: 20000,
-                            ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000 },
+                            ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000, font: { weight: 'bold' } },
                             grid: { color: '#e6e6e6' }
                         },
                         x1: {
@@ -771,8 +1094,6 @@
                     }
                 }
             });
-
-            // Chart 4 (Eficiencia) removed from DOM - no initialization here
 
             // Chart Clientes: Análisis por Cliente (barras + línea)
             const ctxClientes = document.getElementById('chartClientes').getContext('2d');
@@ -843,8 +1164,8 @@
                 data: {
                     labels: [],
                     datasets: [
-                        { label: 'Saldos 1ra', data: [], backgroundColor: '#8b5cf6', borderRadius: 3, yAxisID: 'y' },
-                        { label: '%Saldos 1ra', data: [], type: 'line', borderColor: '#ec4899', backgroundColor: '#ec4899', xAxisID: 'x1', order: 0 }
+                        { label: 'Saldos 1ra', data: [], backgroundColor: '#93c5fd', borderRadius: 3, yAxisID: 'y' },
+                        { label: '%Saldos 1ra', data: [], type: 'line', borderColor: '#93c5fd', backgroundColor: '#93c5fd', pointBackgroundColor: '#93c5fd', pointBorderColor: '#93c5fd', xAxisID: 'x1', order: 0 }
                     ]
                 },
                 options: {
@@ -875,8 +1196,8 @@
                     scales: {
                         // Mostrar eje Y con etiquetas de categoría (meses)
                         y: { display: true, ticks: { color: '#374151' } },
-                        x: { beginAtZero: true, min:0, max:20000, ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000 }, grid: { color: '#e6e6e6' } },
-                        x1: { position: 'top', display: false, grid: { display: false } }
+                        x: { beginAtZero: true, min:0, max:20000, ticks: { callback: val => formatShortNumber(val), color: '#374151', stepSize: 5000, font: { weight: 'bold' } }, grid: { color: '#e6e6e6' } },
+                        x1: { position: 'top', display: false, min: -7, grid: { display: false } }
                     }
                 }
             });
@@ -1037,7 +1358,7 @@
                 charts.c5.data.labels = labels;
                 charts.c5.data.datasets[0].data = dataSaldos1ra;
                 charts.c5.data.datasets[1].data = dataPorcSaldos1ra;
-                ajustarEjeX1(charts.c5, dataPorcSaldos1ra, -5);
+                ajustarEjeX1(charts.c5, dataPorcSaldos1ra, -7);
 
                 // Actualizar todos los gráficos una sola vez
                 charts.c1.update('none'); // 'none' evita animaciones para mayor velocidad
@@ -1130,7 +1451,7 @@
             const periodo = document.getElementById('clientePeriodo');
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="py-2 text-center text-gray-400">No hay datos disponibles</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="py-2 text-center text-gray-400">No hay datos disponibles</td></tr>';
                 periodo.textContent = '';
                 return;
             }
@@ -1160,11 +1481,12 @@
                 const porcSaldo = row.porcentajeSaldo1ra || 0;
                 
                 tr.innerHTML = `
-                    <td class="py-0.5 px-2">${row.cliente || ''}</td>
-                    <td class="py-0.5 px-2 text-right">${formatter.format(row.prendasPedido || 0)}</td>
-                    <td class="py-0.5 px-2 text-right">${formatter.format(row.prendasIngresoNeto || 0)}</td>
-                    <td class="py-0.5 px-2 text-right">${formatter.format(row.saldos1ra || 0)}</td>
-                    <td class="py-0.5 px-2 text-right font-semibold">${porcSaldo.toFixed(2)}%</td>
+                    <td class="py-2 px-2">${row.cliente || ''}</td>
+                    <td class="py-2 px-2">${row.tipoOp || ''}</td>
+                    <td class="py-2 px-2 text-right">${formatter.format(row.prendasPedido || 0)}</td>
+                    <td class="py-2 px-2 text-right">${formatter.format(row.prendasIngresoNeto || 0)}</td>
+                    <td class="py-2 px-2 text-right">${formatter.format(row.saldos1ra || 0)}</td>
+                    <td class="py-2 px-2 text-right font-semibold">${porcSaldo.toFixed(2)}%</td>
                 `;
                 fragment.appendChild(tr);
             });
@@ -1173,11 +1495,12 @@
             const totalTr = document.createElement('tr');
             totalTr.className = 'bg-gray-800 text-white font-bold';
             totalTr.innerHTML = `
-                <td class="py-0.5 px-2">TOTAL</td>
-                <td class="py-0.5 px-2 text-right">${formatter.format(totals.prendasPedido)}</td>
-                <td class="py-0.5 px-2 text-right">${formatter.format(totals.prendasIngresoNeto)}</td>
-                <td class="py-0.5 px-2 text-right">${formatter.format(totals.saldos1ra)}</td>
-                <td class="py-0.5 px-2 text-right">${totalPorc.toFixed(2)}%</td>
+                <td class="py-2 px-2">TOTAL</td>
+                <td class="py-2 px-2">&nbsp;</td>
+                <td class="py-2 px-2 text-right">${formatter.format(totals.prendasPedido)}</td>
+                <td class="py-2 px-2 text-right">${formatter.format(totals.prendasIngresoNeto)}</td>
+                <td class="py-2 px-2 text-right">${formatter.format(totals.saldos1ra)}</td>
+                <td class="py-2 px-2 text-right">${totalPorc.toFixed(2)}%</td>
             `;
             fragment.appendChild(totalTr);
 
@@ -1189,9 +1512,26 @@
         function actualizarGraficoClientes(data) {
             if (!charts.clientes || !data || data.length === 0) return;
 
-            const labels = data.map(row => row.cliente || '');
-            const prendasIngreso = data.map(row => row.prendasIngresoNeto || 0);
-            const porcSaldos = data.map(row => row.porcentajeSaldo1ra || 0);
+            // Agrupar por cliente (sumar prendasIngresoNeto y saldos1ra)
+            const map = {};
+            data.forEach(row => {
+                const cliente = (row.cliente || '').toString();
+                if (!map[cliente]) map[cliente] = { cliente: cliente, prendasIngresoNeto: 0, saldos1ra: 0 };
+                map[cliente].prendasIngresoNeto += Number(row.prendasIngresoNeto) || 0;
+                map[cliente].saldos1ra += Number(row.saldos1ra) || 0;
+            });
+
+            const aggregated = Object.values(map);
+            // Calcular %Saldo1ra agregado por cliente
+            aggregated.forEach(r => {
+                r.porc = r.prendasIngresoNeto ? (r.saldos1ra / r.prendasIngresoNeto) * 100 : 0;
+            });
+            // Ordenar por %Saldo1ra descendente
+            aggregated.sort((a, b) => b.porc - a.porc);
+
+            const labels = aggregated.map(r => r.cliente || '');
+            const prendasIngreso = aggregated.map(r => r.prendasIngresoNeto || 0);
+            const porcSaldos = aggregated.map(r => r.porc || 0);
 
             // Actualizar en batch usando requestAnimationFrame
             requestAnimationFrame(() => {
@@ -1213,6 +1553,390 @@
                 charts.clientes.update('none');
             });
         }
+
+            // Función auxiliar para crear el botón +
+            function crearBotonAgregar(columns) {
+                const info = document.getElementById('accionesFilterInfo');
+                if (info) {
+                    info.innerHTML = '';
+                    const btn = document.createElement('button');
+                    btn.id = 'btnAgregarAccion';
+                    btn.title = 'Agregar acción';
+                    btn.className = 'inline-flex items-center justify-center h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white rounded shadow';
+                    btn.innerText = '+';
+                    btn.addEventListener('click', () => agregarFilaEditable(columns));
+                    info.appendChild(btn);
+                }
+            }
+
+            // Cargar acciones desde la hoja 'acciones' via SCRIPT_URL y filtrar por columna 'Pestaña'
+            async function cargarAcciones() {
+                const tbody = document.getElementById('tablaAccionesBody');
+                const thead = document.getElementById('tablaAccionesHead');
+                const info = document.getElementById('accionesFilterInfo');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Cargando...</td></tr>';
+                if (thead) thead.innerHTML = '';
+                if (info) info.textContent = '';
+
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        redirect: 'follow',
+                        credentials: 'omit',
+                        signal: controller.signal,
+                        body: JSON.stringify({ action: 'getAcciones' })
+                    });
+
+                    clearTimeout(timeoutId);
+                    const result = await response.json();
+                    if (!(result && result.status === 'success' && Array.isArray(result.data))) {
+                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">No hay datos de acciones</td></tr>';
+                        // Crear botón + con columnas por defecto
+                        const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                        crearBotonAgregar(defaultColumns);
+                        return;
+                    }
+
+                    const allRows = result.data;
+                    if (!allRows || allRows.length === 0) {
+                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">No hay datos de acciones</td></tr>';
+                        // Crear botón + con columnas por defecto
+                        const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                        crearBotonAgregar(defaultColumns);
+                        return;
+                    }
+
+                    // Detectar la clave de la columna que contiene 'pesta' (p. ej. 'Pestaña')
+                    const sample = allRows[0] || {};
+                    const pestaKey = Object.keys(sample).find(k => k && k.toLowerCase().includes('pesta')) || 'Pestaña';
+                    const activeBtn = document.querySelector('.tab-button.active');
+                    const currentTabName = activeBtn ? activeBtn.innerText.trim() : 'Pds por regularizar';
+
+                    const filtered = allRows.filter(r => {
+                        const val = r[pestaKey];
+                        return String(val || '').trim().toLowerCase() === currentTabName.toLowerCase();
+                    });
+
+                    // Mostrar info de filtro
+                    // Reemplazar texto por botón '+' para agregar filas editables
+                    const columns = Object.keys(sample || {});
+                    crearBotonAgregar(columns);
+
+                    // Renderizar tabla con columnas en orden del primer objeto
+                    renderTablaAcciones(filtered, columns);
+                } catch (err) {
+                    console.error('Error cargando acciones:', err);
+                    const tbody = document.getElementById('tablaAccionesBody');
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Error al cargar acciones</td></tr>';
+                    // Crear botón + con columnas por defecto
+                    const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                    crearBotonAgregar(defaultColumns);
+                }
+            }
+
+            function renderTablaAcciones(rows, columns) {
+                const thead = document.getElementById('tablaAccionesHead');
+                const tbody = document.getElementById('tablaAccionesBody');
+                if (!thead || !tbody) return;
+
+                // Construir header y body
+                const pestaIdxLocal = columns.findIndex(c => c && c.toLowerCase().includes('pesta'));
+                const visibleColumns = columns.filter((c, idx) => idx !== pestaIdxLocal);
+
+                // calcular anchos fijos por columna visible (una sola vez)
+                const widthMap = { 'problema': 20, 'accion': 60, 'respons': 10, 'fecha': 10 };
+                const assignedVisible = visibleColumns.map(c => {
+                    const k = (c || '').toString().toLowerCase();
+                    for (const key in widthMap) {
+                        if (k.includes(key)) return widthMap[key];
+                    }
+                    return 0;
+                });
+                
+                let ssum = assignedVisible.reduce((a,b)=>a+b,0);
+                if (ssum === 0) {
+                    const eq = Math.floor(100 / visibleColumns.length);
+                    assignedVisible.fill(eq);
+                    assignedVisible[assignedVisible.length-1] += 100 - eq * visibleColumns.length;
+                } else if (ssum !== 100) {
+                    const factor = 100 / ssum;
+                    for (let i=0; i<assignedVisible.length; i++) {
+                        assignedVisible[i] = Math.round(assignedVisible[i]*factor);
+                    }
+                    let s2 = assignedVisible.reduce((a,b)=>a+b,0);
+                    if (s2 !== 100) assignedVisible[assignedVisible.length-1] += 100 - s2;
+                }
+
+                // header con innerHTML para mayor velocidad
+                const headerHTML = visibleColumns.map((col, i) => 
+                    `<th class="py-2 px-2 border-b text-left text-xs font-bold text-white" style="width:${assignedVisible[i]}%">${col}</th>`
+                ).join('');
+                thead.innerHTML = `<tr>${headerHTML}</tr>`;
+
+                // body
+                if (!rows || rows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="py-2 text-center text-gray-400">No hay acciones</td></tr>`;
+                    return;
+                }
+
+                // Caché de meses para evitar crear el array repetidamente
+                const months = ['ene','feb','mar','abr','may','jun','jul','ago','set','oct','nov','dic'];
+                
+                // Función optimizada para formatear fechas
+                const formatValue = (v) => {
+                    if (v === null || v === undefined || v === '') return '';
+                    
+                    // Intentar parsear fecha solo si parece una fecha
+                    if (typeof v === 'string' && (v.includes('T') || v.includes('-') || v.includes('/'))) {
+                        const parsed = new Date(v);
+                        if (!isNaN(parsed.getTime())) {
+                            return `${String(parsed.getDate()).padStart(2,'0')}/${months[parsed.getMonth()]}/${parsed.getFullYear()}`;
+                        }
+                    } else if (v instanceof Date && !isNaN(v.getTime())) {
+                        return `${String(v.getDate()).padStart(2,'0')}/${months[v.getMonth()]}/${v.getFullYear()}`;
+                    }
+                    return String(v);
+                };
+
+                // Construir todo el HTML de una vez (mucho más rápido que createElement)
+                const rowsHTML = rows.map(r => {
+                    const cellsHTML = visibleColumns.map((col, i) => 
+                        `<td class="py-2 px-2" style="width:${assignedVisible[i]}%">${formatValue(r[col])}</td>`
+                    ).join('');
+                    return `<tr class="border-b">${cellsHTML}</tr>`;
+                }).join('');
+                
+                tbody.innerHTML = rowsHTML;
+
+                // ocultar info de anchos
+                const infoEl = document.getElementById('accionesColWidths');
+                if (infoEl) infoEl.innerHTML = '';
+            }
+
+            // Renderizar solo los encabezados de la tabla
+            function renderHeadersAcciones(columns) {
+                const thead = document.getElementById('tablaAccionesHead');
+                if (!thead) return;
+
+                const pestaIdxLocal = columns.findIndex(c => c && c.toLowerCase().includes('pesta'));
+                const visibleColumns = columns.filter((c, idx) => idx !== pestaIdxLocal);
+
+                // calcular anchos fijos por columna visible
+                const widthMap = { 'problema': 20, 'accion': 60, 'respons': 10, 'fecha': 10 };
+                const assignedVisible = visibleColumns.map(c => {
+                    const k = (c || '').toString().toLowerCase();
+                    for (const key in widthMap) {
+                        if (k.includes(key)) return widthMap[key];
+                    }
+                    return 0;
+                });
+                
+                let ssum = assignedVisible.reduce((a,b)=>a+b,0);
+                if (ssum === 0) {
+                    const eq = Math.floor(100 / visibleColumns.length);
+                    assignedVisible.fill(eq);
+                    assignedVisible[assignedVisible.length-1] += 100 - eq * visibleColumns.length;
+                } else if (ssum !== 100) {
+                    const factor = 100 / ssum;
+                    for (let i=0; i<assignedVisible.length; i++) {
+                        assignedVisible[i] = Math.round(assignedVisible[i]*factor);
+                    }
+                    let s2 = assignedVisible.reduce((a,b)=>a+b,0);
+                    if (s2 !== 100) assignedVisible[assignedVisible.length-1] += 100 - s2;
+                }
+
+                // header con innerHTML para mayor velocidad
+                const headerHTML = visibleColumns.map((col, i) => 
+                    `<th class="py-2 px-2 border-b text-left text-xs font-bold text-white" style="width:${assignedVisible[i]}%">${col}</th>`
+                ).join('');
+                thead.innerHTML = `<tr>${headerHTML}</tr>`;
+            }
+
+            // Inserta una fila editable en la tabla de Acciones (al final)
+            function agregarFilaEditable(columns) {
+                const tbody = document.getElementById('tablaAccionesBody');
+                const thead = document.getElementById('tablaAccionesHead');
+                if (!tbody) return;
+
+                // Si no hay headers, renderizarlos primero
+                if (thead && !thead.innerHTML.trim()) {
+                    renderHeadersAcciones(columns);
+                }
+
+                // Limpiar el mensaje "No hay datos" si existe
+                const noDataRow = tbody.querySelector('tr td[colspan]');
+                if (noDataRow) {
+                    tbody.innerHTML = '';
+                }
+
+                // Si ya hay una fila editable, enfocar la primera celda
+                const existing = tbody.querySelector('tr[data-editable="1"]');
+                if (existing) {
+                    const c = existing.querySelector('td[contenteditable]'); if (c) c.focus();
+                    return;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b bg-yellow-50';
+                tr.setAttribute('data-editable', '1');
+
+                // Determinar nombre de pestaña activa
+                function getActiveTabName() {
+                    const btn = document.querySelector('.tab-button.active');
+                    return btn ? btn.innerText.trim() : 'Pds por regularizar';
+                }
+                const activeTab = getActiveTabName();
+
+                // localizar índice de columna 'pesta' (si existe) y 'fecha fin'
+                const pestaIdx = columns.findIndex(c => c && c.toLowerCase().includes('pesta'));
+                let fechaIdx = columns.findIndex(c => c && c.toLowerCase().includes('fecha') && c.toLowerCase().includes('fin'));
+                if (fechaIdx === -1) fechaIdx = columns.findIndex(c => c && c.toLowerCase().includes('fecha'));
+
+                columns.forEach((col, idx) => {
+                    // No crear celda visual para la columna 'Pestaña' (se autocompleta al guardar)
+                    if (idx === pestaIdx) return;
+
+                    const td = document.createElement('td');
+                    td.className = 'py-2 px-2';
+                    td.dataset.col = col;
+                    td.dataset.index = idx;
+
+                    if (idx === fechaIdx) {
+                        // Fecha Fin: mostrar input type=date prellenado con hoy
+                        const input = document.createElement('input');
+                        input.type = 'date';
+                        input.className = 'w-full text-sm p-1 border rounded';
+                        const hoy = new Date();
+                        const yyyy = hoy.getFullYear();
+                        const mm = String(hoy.getMonth() + 1).padStart(2,'0');
+                        const dd = String(hoy.getDate()).padStart(2,'0');
+                        input.value = yyyy + '-' + mm + '-' + dd;
+                        // No autoguardar: el usuario debe presionar Guardar
+                        td.appendChild(input);
+                    } else {
+                        td.contentEditable = 'true';
+                        td.spellcheck = false;
+                        td.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+                        });
+                        // No autoguardar en blur: guardar se realiza con el botón Guardar
+                    }
+                    tr.appendChild(td);
+                });
+
+                // Insertar al final (debajo de todas las filas)
+                tbody.appendChild(tr);
+
+                // Foco en la primera editable celda (si existe)
+                const firstEditable = tr.querySelector('td[contenteditable="true"]'); if (firstEditable) firstEditable.focus();
+
+                // Añadir botones Guardar / Cancelar para controlar el guardado manual
+                addSaveCancelButtons(tr, columns);
+            }
+
+            async function attemptSaveAccion(tr, columns) {
+                if (!tr || tr.getAttribute('data-editable') !== '1') return;
+                if (isSavingAccion) return; // evitar envíos concurrentes
+                isSavingAccion = true;
+                const btnG = document.getElementById('btnGuardarAccion');
+                const btnC = document.getElementById('btnCancelarAccion');
+                if (btnG) btnG.disabled = true;
+                if (btnC) btnC.disabled = true;
+                const cells = Array.from(tr.querySelectorAll('td'));
+                const obj = {};
+                let anyValue = false;
+                cells.forEach(td => {
+                    const key = td.dataset.col || '';
+                    // Si contiene un input[type=date], tomar su valor y convertir a ISO
+                    const inputDate = td.querySelector('input[type="date"]');
+                    let val = '';
+                    if (inputDate) {
+                        const v = inputDate.value || '';
+                        if (v) {
+                            // convertir YYYY-MM-DD a ISO
+                            try {
+                                const dt = new Date(v + 'T00:00:00');
+                                val = dt.toISOString();
+                            } catch (e) {
+                                val = v;
+                            }
+                        } else {
+                            val = '';
+                        }
+                    } else {
+                        val = (td.textContent || '').trim();
+                    }
+                    if (val !== '') anyValue = true;
+                    obj[key] = val;
+                });
+
+                if (!anyValue) {
+                    // eliminar fila vacía
+                    tr.remove();
+                    return;
+                }
+
+                // Asegurar que la columna 'Pestaña' tenga el valor de la pestaña activa
+                let pestaKey = Object.keys(obj).find(k => k && k.toLowerCase().includes('pesta'));
+                if (!pestaKey) {
+                    // Si no está en obj (no se creó la celda), buscar en la lista de columnas
+                    pestaKey = (columns || []).find(c => c && c.toLowerCase().includes('pesta'));
+                }
+                if (pestaKey) {
+                    const btn = document.querySelector('.tab-button.active');
+                    const activeTabName = btn ? btn.innerText.trim() : 'Pds por regularizar';
+                    obj[pestaKey] = activeTabName;
+                }
+
+                // Mostrar estado
+                tr.style.opacity = '0.6';
+                try {
+                    const saved = await saveAccion(obj);
+                    tr.style.opacity = '1';
+                    if (saved) {
+                        // refrescar tabla completa para mantener consistencia
+                        removeSaveCancelButtons();
+                        cargarAcciones();
+                    } else {
+                        // Indicar error visualmente
+                        tr.style.backgroundColor = '#fee2e2';
+                        if (btnG) btnG.disabled = false;
+                        if (btnC) btnC.disabled = false;
+                    }
+                } finally {
+                    isSavingAccion = false;
+                    if (btnG) btnG.disabled = false;
+                    if (btnC) btnC.disabled = false;
+                }
+            }
+
+            // Enviar nueva acción al servidor
+            async function saveAccion(data) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        redirect: 'follow',
+                        credentials: 'omit',
+                        signal: controller.signal,
+                        body: JSON.stringify({ action: 'saveAccion', data: data })
+                    });
+
+                    clearTimeout(timeoutId);
+                    const result = await response.json();
+                    if (result && result.status === 'success') return true;
+                    console.error('Error guardando accion:', result && result.message);
+                    return false;
+                } catch (err) {
+                    console.error('Error guardando accion:', err);
+                    return false;
+                }
+            }
     </script>
 </body>
 </html>
