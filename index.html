@@ -275,9 +275,61 @@
         </div>
     </div>
 
+    <!-- Modal: Detalle %Saldo 1ra por Cliente -->
+    <div id="modalSaldo1raDetalle" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black opacity-40" id="modalSaldoOverlay"></div>
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 lg:w-2/3 z-50 flex flex-col max-h-[80vh]">
+            <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-20">
+                <h4 id="modalSaldoTitle" class="text-lg font-bold">Cliente - %Saldo 1ra</h4>
+                <button id="modalSaldoClose" class="text-gray-600 hover:text-gray-900">Cerrar ✕</button>
+            </div>
+            <div class="p-4 overflow-auto flex-1">
+                <table id="modalSaldoTable" class="w-full text-sm">
+                    <thead class="bg-gray-100 sticky top-0 z-10">
+                        <tr class="text-left text-xs font-bold text-gray-700">
+                            <th class="py-2 px-2 border whitespace-normal">Estilo</th>
+                            <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Pedido</th>
+                            <th class="py-1 px-1 border text-right hidden text-xs">Prendas<br>Pedido HM</th>
+                            <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Prog.</th>
+                            <th class="py-1 px-1 border text-right text-xs">%Prog</th>
+                            <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Girado</th>
+                            <th class="py-1 px-1 border text-right text-xs">%Giro</th>
+                            <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Cortadas<br>Neto</th>
+                            <th class="py-1 px-1 border text-right text-xs">%Corte</th>
+                            <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Despacho<br>Almacen</th>
+                            <th class="py-1 px-1 border text-right text-xs">%Desp.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalSaldoBody" class="text-gray-700"></tbody>
+                    <tfoot>
+                        <tr id="modalSaldoTotalRow" class="bg-gray-50 font-bold sticky bottom-0 z-10">
+                            <td class="py-2 px-2 border">TOTAL</td>
+                            <td id="modalTotalPedido" class="py-1 px-1 border text-right">0</td>
+                            <td id="modalTotalPedidoHM" class="py-1 px-1 border text-right hidden">0</td>
+                            <td id="modalTotalProg" class="py-1 px-1 border text-right">0</td>
+                            <td id="modalTotalProgPct" class="py-1 px-1 border text-right">0%</td>
+                            <td id="modalTotalGirado" class="py-1 px-1 border text-right">0</td>
+                            <td id="modalTotalGiroPct" class="py-1 px-1 border text-right">0%</td>
+                            <td id="modalTotalCortadas" class="py-1 px-1 border text-right">0</td>
+                            <td id="modalTotalCortasPct" class="py-1 px-1 border text-right">0%</td>
+                            <td id="modalTotalDespachoAlmacen" class="py-1 px-1 border text-right">0</td>
+                            <td id="modalTotalDespPct" class="py-1 px-1 border text-right">0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // URL proporcionada por el usuario
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtAS-n3FikPNCC-3zjDuyzC8YKoD0NcVvy5UgWtCzsHjX6JOBiwu8otfBeViNa6lercw/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-NzOipiiNl8FdYKArI1zR1iSIWH1a6N22EVS418QwSd1by2oKL1Uf-I2f48onxYDT4Q/exec";
+        const SHEET_ID = "15TXF2s-N9Q38BCz9pE31WCZqTLAGQIi5AqnFgkZaAhw";
+        
+        // Variable global para almacenar los datos cargados desde la hoja 'resumen'
+        let rawDataResumen = [];
+        let rawDataBase = [];
 
         // Función para cambiar entre pestañas
         function switchTab(tabName) {
@@ -299,6 +351,8 @@
                 setTimeout(() => {
                     if (charts.c1) charts.c1.resize();
                 }, 50);
+                // Recargar acciones para la pestaña actual
+                cargarAcciones().catch(e => console.warn('Error recargando acciones:', e));
             } else if (tabName === 'saldos') {
                 document.getElementById('contentSaldos').classList.add('active');
                 document.getElementById('tabSaldos').classList.add('active');
@@ -308,6 +362,8 @@
                     if (charts.c2) charts.c2.resize();
                     if (charts.c3) charts.c3.resize();
                 }, 50);
+                // Recargar acciones para la pestaña actual
+                cargarAcciones().catch(e => console.warn('Error recargando acciones:', e));
             } else if (tabName === 'saldo1raCliente') {
                 document.getElementById('contentSaldo1raCliente').classList.add('active');
                 document.getElementById('tabSaldo1raCliente').classList.add('active');
@@ -315,6 +371,12 @@
                 setTimeout(() => {
                     if (charts.clientes) charts.clientes.resize();
                 }, 50);
+                // Recargar acciones para la pestaña actual
+                cargarAcciones().catch(e => console.warn('Error recargando acciones:', e));
+                // Limpiar caché y recargar datos de clientes
+                cache.clientes = null;
+                cache.timestamp = null;
+                cargarDatosClientes().catch(e => console.warn('Error recargando clientes:', e));
             }
 
         }
@@ -448,34 +510,71 @@
             document.querySelectorAll('select').forEach(sel => {
                 sel.addEventListener('change', () => {
                     clearTimeout(filterTimeout);
-                    // Invalidar caché al cambiar filtros
-                    cache.dashboard = null;
-                    cache.lastParams = null;
                     filterTimeout = setTimeout(() => {
-                        actualizarGraficos();
+                        // Procesar datos ya cargados con nuevos filtros
+                        procesarDatosOptimizado();
                     }, 300); // 300ms de espera
                 });
             });
         });
         
-        // Cargar datos iniciales de forma optimizada
-        async function cargarDatosIniciales() {
+        // Cargar datos iniciales usando Google Visualization API (más rápido)
+        function cargarDatosIniciales() {
             const loading = document.getElementById('mainLoader');
             const loaderText = document.getElementById('loaderText');
             loading.classList.remove('hidden');
             setConnectionStatus('loading', 'Cargando...');
             
             try {
-                // PRIORIDAD 1: Cargar primero los gráficos principales (lo más importante)
-                loaderText.textContent = 'Cargando gráficos...';
-                await actualizarGraficos(true);
+                // Cargar datos desde Google Sheets usando la API de Visualization
+                loaderText.textContent = 'Cargando desde Google Sheets...';
+                const script = document.createElement('script');
+                script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=resumen&tqx=responseHandler:loadResumenCallback`;
+                script.onerror = () => {
+                    console.error('Error cargando datos desde Google Sheets');
+                    setConnectionStatus('error', 'Error de conexión');
+                    loading.classList.add('hidden');
+                    alert('Error de conexión con Google Sheets. Verifica tu conexión a internet.');
+                };
+                document.body.appendChild(script);
+            } catch (error) {
+                console.error("Error en carga inicial:", error);
+                setConnectionStatus('error', 'Error de conexión');
+                loading.classList.add('hidden');
+            }
+        }
+        
+        // Callback que recibe los datos desde Google Visualization API
+        window.loadResumenCallback = function(jsonResponse) {
+            const loading = document.getElementById('mainLoader');
+            const loaderText = document.getElementById('loaderText');
+            
+            try {
+                if (!jsonResponse || !jsonResponse.table) {
+                    throw new Error("Datos inválidos desde Google Sheets.");
+                }
                 
-                // Ocultar loader principal ya que los gráficos están listos
+                // Extraer datos de la respuesta
+                const cols = jsonResponse.table.cols.map(col => col.label || col.id || '');
+                const rows = jsonResponse.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? cell.v : ""));
+                
+                // Guardar datos en variable global
+                rawDataResumen = [cols, ...rows];
+                
+                console.log('Datos cargados:', rawDataResumen.length, 'filas');
+                
+                // Procesar y renderizar los gráficos
+                loaderText.textContent = 'Renderizando gráficos...';
+                procesarDatosOptimizado();
+                
+                // Ocultar loader
                 loading.classList.add('hidden');
                 setConnectionStatus('success', 'Conectado');
                 
-                // PRIORIDAD 2: Cargar tablas secundarias en segundo plano (no bloquean)
-                loaderText.textContent = 'Cargando datos adicionales...';
+                // PRIORIDAD 2: Cargar datos secundarios (Base para cálculos de saldos)
+                cargarDatosBase().catch(e => console.warn('Error cargando base:', e));
+                
+                // PRIORIDAD 3: Cargar tablas secundarias en segundo plano
                 Promise.all([
                     cargarDatosClientes().catch(e => console.warn('Error cargando clientes:', e)),
                     cargarAcciones().catch(e => console.warn('Error cargando acciones:', e))
@@ -486,11 +585,42 @@
                 });
                 
             } catch (error) {
-                console.error("Error en carga inicial:", error);
-                setConnectionStatus('error', 'Error de conexión');
+                console.error('Error procesando datos:', error);
                 loading.classList.add('hidden');
+                setConnectionStatus('error', 'Error procesando datos');
+                alert('Error procesando datos: ' + error.message);
+            }
+        };
+        
+        // Cargar datos de la hoja 'base' para cálculos de saldos
+        async function cargarDatosBase() {
+            try {
+                const script = document.createElement('script');
+                script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=base&tqx=responseHandler:loadBaseCallback`;
+                script.onerror = () => console.warn('Error cargando hoja base');
+                document.body.appendChild(script);
+            } catch (error) {
+                console.warn('Error cargando datos base:', error);
             }
         }
+        
+        // Callback para datos de la hoja 'base'
+        window.loadBaseCallback = function(jsonResponse) {
+            try {
+                if (!jsonResponse || !jsonResponse.table) return;
+                
+                const cols = jsonResponse.table.cols.map(col => col.label || col.id || '');
+                const rows = jsonResponse.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? cell.v : ""));
+                
+                rawDataBase = [cols, ...rows];
+                console.log('Datos base cargados:', rawDataBase.length, 'filas');
+                
+                // Re-procesar con datos de saldos ahora disponibles
+                procesarDatosOptimizado();
+            } catch (error) {
+                console.warn('Error procesando datos base:', error);
+            }
+        };
 
         // Cargar años disponibles desde la hoja 'base' (servidor) y poblar selects
         async function cargarAniosDesdeBase() {
@@ -860,9 +990,9 @@
 
                         // position among visible lines (for stacking if multiple)
                         const positionOffset = lineDatasetIndices.indexOf(datasetIndex);
-                        const fontSize = (options && options.fontSize) || 12;
-                        const fontFamily = (options && options.fontFamily) || 'Arial';
-                        ctx.font = 'bold ' + fontSize + 'px ' + fontFamily;
+                        const lineFontSize = (options && options.lineFontSize) || (options && options.fontSize) || 12;
+                        const lineFontFamily = (options && options.lineFontFamily) || (options && options.fontFamily) || 'Arial';
+                        ctx.font = 'bold ' + lineFontSize + 'px ' + lineFontFamily;
                         // Mostrar etiquetas de línea. Por defecto a la derecha; para chart1 las colocamos arriba
                         meta.data.forEach((point, index) => {
                             if (!point || point.skip) return;
@@ -880,7 +1010,7 @@
                             }
 
                             // if multiple line datasets, stack upward (vertical shift)
-                            const stackSpacing = fontSize + 4;
+                            const stackSpacing = lineFontSize + 4;
                             const isChart1 = chart && chart.canvas && (chart.canvas.id === 'chart1' || chart.canvas.id === 'chartClientes');
 
                             if (isChart1) {
@@ -891,7 +1021,7 @@
                                 const xLabel = x;
                                 if (xLabel >= chartArea.left && xLabel <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
                                     ctx.fillStyle = (options && options.lineColor) || '#ef4444';
-                                    drawFormattedText(ctx, text, xLabel, y, fontSize, false);
+                                    drawFormattedText(ctx, text, xLabel, y, lineFontSize, false);
                                 }
                             } else {
                                 // Default: etiqueta a la derecha del punto
@@ -902,7 +1032,7 @@
                                 const xLabel = x + horizOffset + (positionOffset * 6);
                                 if (xLabel >= chartArea.left && xLabel <= chartArea.right && y >= chartArea.top && y <= chartArea.bottom) {
                                     ctx.fillStyle = (options && options.lineColor) || '#111827';
-                                    drawFormattedText(ctx, text, xLabel, y, fontSize, false);
+                                    drawFormattedText(ctx, text, xLabel, y, lineFontSize, false);
                                 }
                             }
                         });
@@ -923,7 +1053,10 @@
                         position: 'bottom'
                     } 
                 },
-                scales: { y: { beginAtZero: true } }
+                scales: {
+                    x: { ticks: { color: '#374151', font: { weight: 'bold' } } },
+                    y: { beginAtZero: true, ticks: { color: '#374151', font: { weight: 'bold' } } }
+                }
             };
 
             // Chart 1: Mixto
@@ -971,9 +1104,10 @@
                             }
                         },
                     scales: {
+                        x: { ticks: { color: '#374151', font: { weight: 'bold' } } },
                         y: { 
                             position: 'left',
-                            ticks: { callback: val => formatShortNumber(val) }
+                            ticks: { callback: val => formatShortNumber(val), color: '#374151', font: { weight: 'bold' } }
                         },
                         y1: { 
                             // Ocultamos el eje secundario para dar más espacio horizontal al chart
@@ -1000,11 +1134,8 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     layout: { padding: { right: 48 } },
-                    // Ajustes del plugin de etiquetas en base de barras
                     plugins: {
-                        barBaseLabels: { fontSize: 14, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 }
-                    },
-                    plugins: {
+                        barBaseLabels: { fontSize: 14, lineFontSize: 16, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 },
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
@@ -1023,7 +1154,7 @@
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, display: true, ticks: { color: '#374151' }, grid: { color: '#e6e6e6' } },
+                        y: { beginAtZero: true, display: true, ticks: { color: '#374151', font: { weight: 'bold' } }, grid: { color: '#e6e6e6' } },
                         x: {
                             beginAtZero: true,
                             min: 0,
@@ -1058,9 +1189,7 @@
                     maintainAspectRatio: false,
                     layout: { padding: { right: 48 } },
                     plugins: {
-                        barBaseLabels: { fontSize: 14, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 }
-                    },
-                    plugins: {
+                        barBaseLabels: { fontSize: 14, lineFontSize: 16, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 },
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
@@ -1078,7 +1207,7 @@
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, display: true, ticks: { color: '#374151' }, grid: { color: '#e6e6e6' } },
+                        y: { beginAtZero: true, display: true, ticks: { color: '#374151', font: { weight: 'bold' } }, grid: { color: '#e6e6e6' } },
                         x: {
                             beginAtZero: true,
                             min: 0,
@@ -1139,7 +1268,7 @@
                         y: {
                             position: 'left',
                             beginAtZero: true,
-                            ticks: { callback: val => formatShortNumber(val) }
+                            ticks: { callback: val => formatShortNumber(val), font: { weight: 'bold' } }
                         },
                         y1: {
                             position: 'right',
@@ -1174,9 +1303,7 @@
                     maintainAspectRatio: false,
                     layout: { padding: { right: 48 } },
                     plugins: {
-                        barBaseLabels: { fontSize: 14, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 }
-                    },
-                    plugins: {
+                        barBaseLabels: { fontSize: 14, lineFontSize: 16, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 },
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
@@ -1213,76 +1340,123 @@
             // Actualizar título del gráfico 1 según filtros seleccionados
             try { actualizarTituloChart1(); actualizarTituloEvolucion(); } catch(e) { console.warn('Error actualizando títulos', e); }
 
-            const params = {
-                action: 'getDashboardData',
-                desdeAnio: document.getElementById('desdeAnio').value,
-                desdeMes: document.getElementById('desdeMes').value,
-                hastaAnio: document.getElementById('hastaAnio').value,
-                hastaMes: document.getElementById('hastaMes').value
-            };
-            
-            // Verificar si tenemos datos en caché válidos
-            const paramsKey = JSON.stringify(params);
-            const now = Date.now();
-            if (cache.dashboard && cache.lastParams === paramsKey && 
-                cache.timestamp && (now - cache.timestamp) < cache.TTL) {
-                // Usar caché
-                procesarDatos(cache.dashboard);
-                if (!silentMode) {
-                    loading.classList.add('hidden');
-                    setConnectionStatus('success', 'Datos en caché');
-                    setTimeout(() => setConnectionStatus('success', 'Conectado'), 2000);
-                }
-                return;
-            }
-
             try {
-                // LLAMADA AL GOOGLE SHEET REAL con timeout
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos timeout
-                
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    redirect: "follow", 
-                    credentials: 'omit',
-                    signal: controller.signal,
-                    body: JSON.stringify(params)
-                });
-                
-                clearTimeout(timeoutId);
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    // Guardar en caché
-                    cache.dashboard = result.data;
-                    cache.lastParams = paramsKey;
-                    cache.timestamp = now;
-                    
-                    procesarDatos(result.data);
-                    setConnectionStatus('success', 'Conectado');
-                } else {
-                    console.error("Error del servidor:", result.message);
-                    setConnectionStatus('error', 'Error del servidor');
-                    alert("Error al cargar datos: " + result.message);
-                }
-
+                // Usar datos ya cargados en memoria (mucho más rápido)
+                procesarDatosOptimizado();
+                setConnectionStatus('success', 'Conectado');
             } catch (error) {
-                setConnectionStatus('error', 'Error de conexión');
-                if (error.name === 'AbortError') {
-                    alert("La solicitud tardó demasiado. Por favor, intenta de nuevo.");
-                } else {
-                    console.error("Error de conexión:", error);
-                    // Mensaje amigable para entorno local
-                    let msg = "Error de conexión. ";
-                    if(window.location.protocol === 'file:') msg += "Asegúrate de tener conexión a internet.";
-                    else msg += "Si estás en vista previa, descarga el HTML.";
-                    alert(msg);
-                }
+                console.error("Error procesando gráficos:", error);
+                setConnectionStatus('error', 'Error procesando datos');
             } finally {
                 if (!silentMode) loading.classList.add('hidden');
             }
         }
 
+        function procesarDatosOptimizado() {
+            if (!rawDataResumen || rawDataResumen.length <= 1) {
+                console.warn('No hay datos para procesar');
+                return;
+            }
+            
+            // Obtener rango de fechas seleccionado
+            const desdeAnio = parseInt(document.getElementById('desdeAnio').value);
+            const hastaAnio = parseInt(document.getElementById('hastaAnio').value);
+            const desdeMes = parseInt(document.getElementById('desdeMes').value);
+            const hastaMes = parseInt(document.getElementById('hastaMes').value);
+            
+            // Encontrar índices de columnas
+            const headers = rawDataResumen[0];
+            const colAnio = headers.findIndex(h => h && h.toString().toLowerCase().includes('año'));
+            const colMes = headers.findIndex(h => h && h.toString().toLowerCase() === 'mes');
+            const colIngreso = headers.findIndex(h => h && h.toString().toLowerCase().includes('ingreso'));
+            const colDiferencia = headers.findIndex(h => h && h.toString().toLowerCase().includes('dif'));
+            const colPorcentaje = headers.findIndex(h => h && h.toString().toLowerCase().includes('%'));
+            
+            if (colAnio === -1 || colMes === -1) {
+                console.error('Columnas necesarias no encontradas');
+                return;
+            }
+            
+            // Filtrar datos según rango
+            const monthsOrder = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
+            const dataFiltrada = [];
+            
+            for (let i = 1; i < rawDataResumen.length; i++) {
+                const row = rawDataResumen[i];
+                const anio = parseInt(row[colAnio]) || 0;
+                const mesTxt = (row[colMes] || '').toString().trim();
+                const mesIdx = monthsOrder.indexOf(mesTxt);
+                
+                if (mesIdx === -1) continue;
+                
+                // Filtrar por rango
+                if (anio < desdeAnio || anio > hastaAnio) continue;
+                if (anio === desdeAnio && mesIdx < desdeMes) continue;
+                if (anio === hastaAnio && mesIdx > hastaMes) continue;
+                
+                dataFiltrada.push({
+                    anio: anio,
+                    mes: mesTxt,
+                    mesIdx: mesIdx,
+                    ingreso: parseFloat(row[colIngreso]) || 0,
+                    diferencia: parseFloat(row[colDiferencia]) || 0,
+                    porcentaje: parseFloat(row[colPorcentaje]) || 0
+                });
+            }
+            
+            // Calcular saldos desde rawDataBase si están disponibles
+            const saldosMap = calcularSaldosDesdeBase();
+            
+            // Agregar saldos a los datos filtrados
+            dataFiltrada.forEach(item => {
+                const key = `${item.anio}|${item.mes}`;
+                const saldos = saldosMap[key] || { saldos1ra: 0, saldos2da: 0, saldos3ra: 0 };
+                item.saldos1ra = saldos.saldos1ra;
+                item.saldos2da = saldos.saldos2da;
+                item.saldos3ra = saldos.saldos3ra;
+            });
+            
+            procesarDatos(dataFiltrada);
+        }
+        
+        function calcularSaldosDesdeBase() {
+            const saldosMap = {};
+            
+            if (!rawDataBase || rawDataBase.length <= 1) {
+                return saldosMap;
+            }
+            
+            try {
+                const headers = rawDataBase[0];
+                const colAnio = 0; // Primera columna
+                const colMes = 1;  // Segunda columna
+                const colSaldo1 = 78; // CA (índice 78)
+                const colSaldo2 = 82; // CE (índice 82)
+                const colSaldo3 = 86; // CI (índice 86)
+                
+                for (let i = 1; i < rawDataBase.length; i++) {
+                    const row = rawDataBase[i];
+                    if (!row || row.length < 87) continue;
+                    
+                    const anio = row[colAnio];
+                    const mes = row[colMes];
+                    const key = `${anio}|${mes}`;
+                    
+                    if (!saldosMap[key]) {
+                        saldosMap[key] = { saldos1ra: 0, saldos2da: 0, saldos3ra: 0 };
+                    }
+                    
+                    saldosMap[key].saldos1ra += parseFloat(row[colSaldo1]) || 0;
+                    saldosMap[key].saldos2da += parseFloat(row[colSaldo2]) || 0;
+                    saldosMap[key].saldos3ra += parseFloat(row[colSaldo3]) || 0;
+                }
+            } catch (error) {
+                console.warn('Error calculando saldos:', error);
+            }
+            
+            return saldosMap;
+        }
+        
         function procesarDatos(data) {
             if (!data || data.length === 0) {
                 // Limpiar gráficos
@@ -1409,41 +1583,154 @@
                 return;
             }
             
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
-                
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    redirect: "follow",
-                    credentials: 'omit',
-                    signal: controller.signal,
-                    body: JSON.stringify({ action: 'getClienteData' })
-                });
-                
-                clearTimeout(timeoutId);
-                const result = await response.json();
-                
-                if (result.status === 'success' && result.data) {
-                    // Ordenar por %Saldo 1ra descendente antes de renderizar
-                    result.data.sort((a,b) => (b.porcentajeSaldo1ra || 0) - (a.porcentajeSaldo1ra || 0));
+            return new Promise((resolve, reject) => {
+                try {
+                    // Crear un callback único para esta carga
+                    const callbackName = 'loadClientesCallback_' + Date.now();
                     
-                    // Guardar en caché
-                    cache.clientes = result.data;
-                    if (!cache.timestamp) cache.timestamp = now;
+                    // Definir el callback globalmente
+                    window[callbackName] = function(jsonResponse) {
+                        try {
+                            if (!jsonResponse || !jsonResponse.table) {
+                                throw new Error("Respuesta inválida desde Google Visualization API");
+                            }
+                            
+                            const cols = jsonResponse.table.cols.map(col => col.label || col.id || '');
+                            const rows = jsonResponse.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? cell.v : ""));
+                            
+                            // Encontrar índices de columnas
+                            const anioIdx = cols.findIndex(c => c && c.toLowerCase().includes('año'));
+                            const mesIdx = cols.findIndex(c => c && c.toLowerCase().includes('mes'));
+                            const clienteIdx = 3; // Columna D
+                            const prendasPedidoIdx = 11; // Columna L
+                            const prendasIngresoNetoIdx = 52; // Columna BA
+                            const saldos1raIdx = 78; // Columna CA
+                            const tipoOpIdx = cols.findIndex(c => {
+                                const h = String(c || '').toLowerCase();
+                                return (h.includes('tipo') && (h.includes('op') || h.includes('o.p') || h.includes('orden'))) || h === 'tipo op';
+                            });
+                            
+                            if (anioIdx === -1 || mesIdx === -1) {
+                                throw new Error("No se encontraron columnas de Año o Mes");
+                            }
+                            
+                            // Encontrar el último año y mes disponible
+                            let ultimoAnio = null;
+                            let ultimoMes = null;
+                            const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
+                            
+                            rows.forEach(row => {
+                                const anio = row[anioIdx];
+                                const mes = row[mesIdx];
+                                
+                                if (anio && mes) {
+                                    if (ultimoAnio === null || anio > ultimoAnio) {
+                                        ultimoAnio = anio;
+                                        ultimoMes = mes;
+                                    } else if (anio === ultimoAnio) {
+                                        const mesIdx_val = monthNames.indexOf(String(mes));
+                                        const ultimoMesIdx_val = monthNames.indexOf(String(ultimoMes));
+                                        if (mesIdx_val > ultimoMesIdx_val) {
+                                            ultimoMes = mes;
+                                        }
+                                    }
+                                }
+                            });
+                            
+                            if (!ultimoAnio || !ultimoMes) {
+                                throw new Error("No se encontró datos de año/mes");
+                            }
+                            
+                            // Agrupar datos del último mes por cliente
+                            const clienteMap = {};
+                            
+                            rows.forEach(row => {
+                                const anio = row[anioIdx];
+                                const mes = row[mesIdx];
+                                
+                                if (anio === ultimoAnio && mes === ultimoMes) {
+                                    const cliente = row[clienteIdx] || 'Sin cliente';
+                                    const prendasPedido = parseFloat(row[prendasPedidoIdx]) || 0;
+                                    const prendasIngresoNeto = parseFloat(row[prendasIngresoNetoIdx]) || 0;
+                                    const saldos1ra = parseFloat(row[saldos1raIdx]) || 0;
+                                    const tipoOp = tipoOpIdx !== -1 ? (row[tipoOpIdx] || '') : '';
+                                    
+                                    const key = cliente + '|' + (tipoOp || '');
+                                    if (!clienteMap[key]) {
+                                        clienteMap[key] = {
+                                            cliente: cliente,
+                                            tipoOp: tipoOp,
+                                            prendasPedido: 0,
+                                            prendasIngresoNeto: 0,
+                                            saldos1ra: 0,
+                                            anio: ultimoAnio,
+                                            mes: ultimoMes
+                                        };
+                                    }
+                                    
+                                    clienteMap[key].prendasPedido += prendasPedido;
+                                    clienteMap[key].prendasIngresoNeto += prendasIngresoNeto;
+                                    clienteMap[key].saldos1ra += saldos1ra;
+                                }
+                            });
+                            
+                            // Convertir map a array y calcular porcentajes
+                            let clienteData = Object.values(clienteMap).map(row => {
+                                row.porcentajeSaldo1ra = row.prendasIngresoNeto ? (row.saldos1ra / row.prendasIngresoNeto) * 100 : 0;
+                                return row;
+                            });
+                            
+                            if (clienteData.length === 0) {
+                                throw new Error("No hay datos para el último mes");
+                            }
+                            
+                            // Ordenar por %Saldo 1ra descendente
+                            clienteData.sort((a, b) => (b.porcentajeSaldo1ra || 0) - (a.porcentajeSaldo1ra || 0));
+                            
+                            // Guardar en caché
+                            cache.clientes = clienteData;
+                            cache.timestamp = now;
+                            
+                            actualizarTablaClientes(clienteData);
+                            actualizarGraficoClientes(clienteData);
+                            
+                            // Limpiar callback
+                            delete window[callbackName];
+                            resolve();
+                        } catch (err) {
+                            console.error('Error procesando datos de clientes:', err);
+                            // Limpiar callback
+                            delete window[callbackName];
+                            reject(err);
+                        }
+                    };
                     
-                    actualizarTablaClientes(result.data);
-                    actualizarGraficoClientes(result.data);
-                } else {
-                    console.error("Error al cargar datos de clientes:", result.message);
+                    // Crear script para cargar datos de la hoja 'base'
+                    const script = document.createElement('script');
+                    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=base&tqx=responseHandler:${callbackName}`;
+                    script.onerror = () => {
+                        console.error('Error cargando datos desde Google Visualization API');
+                        delete window[callbackName];
+                        reject(new Error('Network error loading cliente data'));
+                    };
+                    
+                    // Timeout de 15 segundos
+                    const timeoutId = setTimeout(() => {
+                        if (window[callbackName]) {
+                            console.error('Timeout cargando datos de clientes');
+                            delete window[callbackName];
+                            reject(new Error('Timeout loading cliente data'));
+                        }
+                    }, 15000);
+                    
+                    window[callbackName]._timeoutId = timeoutId;
+                    
+                    document.body.appendChild(script);
+                } catch (err) {
+                    console.error('Error iniciando carga de clientes:', err);
+                    reject(err);
                 }
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    console.warn("Timeout al cargar datos de clientes");
-                } else {
-                    console.error("Error de conexión al cargar datos de clientes:", error);
-                }
-            }
+            });
         }
 
         function actualizarTablaClientes(data) {
@@ -1509,6 +1796,260 @@
             tbody.appendChild(fragment);
         }
 
+        // --- Modal handlers para detalle %Saldo 1ra por Cliente ---
+        document.getElementById('tablaClientesBody').addEventListener('click', async function(e) {
+            const td = e.target.closest('td');
+            if (!td) return;
+            const tr = td.closest('tr');
+            if (!tr) return;
+            // Última fila es total (tiene clase bg-gray-800 text-white), ignorarla
+            if (tr.classList.contains('bg-gray-800') || tr.classList.contains('bg-gray-800')) return;
+
+            // Determinar índice de la celda: %Saldo 1ra es la columna 5 (0-based index 5)
+            const cellIndex = Array.prototype.indexOf.call(tr.children, td);
+            if (cellIndex !== 5) return; // solo reaccionar en la columna %Saldo 1ra
+
+            const cliente = (tr.children[0] && tr.children[0].textContent || '').trim();
+            if (!cliente) return;
+
+            openModalSaldo(cliente);
+        });
+
+        function closeModalSaldo() {
+            const modal = document.getElementById('modalSaldo1raDetalle');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        document.getElementById('modalSaldoClose').addEventListener('click', closeModalSaldo);
+        document.getElementById('modalSaldoOverlay').addEventListener('click', closeModalSaldo);
+
+        async function openModalSaldo(cliente) {
+            const modal = document.getElementById('modalSaldo1raDetalle');
+            const title = document.getElementById('modalSaldoTitle');
+            const body = document.getElementById('modalSaldoBody');
+            const formatter = new Intl.NumberFormat('es-PE');
+
+            // Calcular porcentaje desde caché de clientes si está disponible
+            let pctText = '';
+            let tipoText = '';
+            try {
+                if (cache && cache.clientes && Array.isArray(cache.clientes)) {
+                    const found = cache.clientes.find(c => (c.cliente || '').toString().trim().toLowerCase() === cliente.toString().trim().toLowerCase());
+                    if (found && found.porcentajeSaldo1ra !== undefined && found.porcentajeSaldo1ra !== null) {
+                        pctText = ' = ' + Number(found.porcentajeSaldo1ra).toFixed(2) + '%';
+                    }
+                    if (found && found.tipoOp) {
+                        tipoText = ' - Tipo: ' + found.tipoOp;
+                    }
+                }
+            } catch (e) { console.warn('Error leyendo cache.clientes', e); }
+
+            title.textContent = `${cliente} - %Saldo 1ra${pctText}${tipoText}`;
+            body.innerHTML = '<tr><td colspan="6" class="py-2 text-center text-gray-400">Cargando...</td></tr>';
+            modal.classList.remove('hidden');
+
+            try {
+                // OPTIMIZACIÓN: Usar datos ya cargados en memoria en lugar de fetch
+                if (!rawDataBase || rawDataBase.length <= 1) {
+                    // Si no hay datos base, intentar cargarlos primero
+                    body.innerHTML = '<tr><td colspan="6" class="py-2 text-center text-gray-400">Cargando datos base...</td></tr>';
+                    await cargarDatosBase();
+                    // Esperar un momento para que se procesen
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                // Filtrar datos de rawDataBase por cliente
+                const rows = filtrarBaseByCliente(cliente);
+                
+                if (!rows || rows.length === 0) {
+                    body.innerHTML = '<tr><td colspan="6" class="py-2 text-center text-gray-400">No hay datos disponibles</td></tr>';
+                    return;
+                }
+
+                // Ordenar por %Corte de mayor a menor
+                rows.sort((a, b) => {
+                    const pedidoA = Number(a.pedido) || 0;
+                    const cortadasA = Number(a.cortadas) || 0;
+                    const cortasA = pedidoA ? (cortadasA / pedidoA * 100) : 0;
+                    
+                    const pedidoB = Number(b.pedido) || 0;
+                    const cortadasB = Number(b.cortadas) || 0;
+                    const cortasB = pedidoB ? (cortadasB / pedidoB * 100) : 0;
+                    
+                    return cortasB - cortasA; // De mayor a menor
+                });
+
+                const modalFragment = document.createDocumentFragment();
+                let totalPedido = 0, totalPedidoHM = 0, totalProg = 0, totalGirado = 0, totalCortadas = 0, totalDespachoAlmacen = 0;
+
+                rows.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b';
+                    const estilo = r.estilo || '';
+                    const pedido = Number(r.pedido) || 0;
+                    const pedidoHM = Number(r.pedidoHM) || 0;
+                    const prog = Number(r.prog) || 0;
+                    const girado = Number(r.girado) || 0;
+                    const cortadas = Number(r.cortadas) || 0;
+                    const despachoAlmacen = Number(r.despachoAlmacen) || 0;
+                    const progPct = pedido ? (prog / pedido * 100) : 0;
+                    const giroPct = pedido ? (girado / pedido * 100) : 0;
+                    const cortasPct = pedido ? (cortadas / pedido * 100) : 0;
+                    const despPct = pedido ? (despachoAlmacen / pedido * 100) : 0;
+
+                    totalPedido += pedido;
+                    totalPedidoHM += pedidoHM;
+                    totalProg += prog;
+                    totalGirado += girado;
+                    totalCortadas += cortadas;
+                    totalDespachoAlmacen += despachoAlmacen;
+
+                    tr.innerHTML = `
+                        <td class="py-2 px-2">${estilo}</td>
+                        <td class="py-1 px-1 text-right">${formatter.format(pedido)}</td>
+                        <td class="py-1 px-1 text-right hidden">${formatter.format(pedidoHM)}</td>
+                        <td class="py-1 px-1 text-right">${formatter.format(prog)}</td>
+                        <td class="py-1 px-1 text-right">${progPct.toFixed(2)}%</td>
+                        <td class="py-1 px-1 text-right">${formatter.format(girado)}</td>
+                        <td class="py-1 px-1 text-right">${giroPct.toFixed(2)}%</td>
+                        <td class="py-1 px-1 text-right">${formatter.format(cortadas)}</td>
+                        <td class="py-1 px-1 text-right">${cortasPct.toFixed(2)}%</td>
+                        <td class="py-1 px-1 text-right">${formatter.format(despachoAlmacen)}</td>
+                        <td class="py-1 px-1 text-right">${despPct.toFixed(2)}%</td>
+                    `;
+                    modalFragment.appendChild(tr);
+                });
+
+                body.innerHTML = '';
+                body.appendChild(modalFragment);
+
+                // Actualizar totales en footer
+                const totalProgPct = totalPedido ? (totalProg / totalPedido * 100) : 0;
+                const totalGiroPct = totalPedido ? (totalGirado / totalPedido * 100) : 0;
+                const totalCortasPct = totalPedido ? (totalCortadas / totalPedido * 100) : 0;
+                const totalDespPct = totalPedido ? (totalDespachoAlmacen / totalPedido * 100) : 0;
+                document.getElementById('modalTotalPedido').textContent = formatter.format(totalPedido);
+                document.getElementById('modalTotalPedidoHM').textContent = formatter.format(totalPedidoHM);
+                document.getElementById('modalTotalProg').textContent = formatter.format(totalProg);
+                document.getElementById('modalTotalProgPct').textContent = totalProgPct.toFixed(2) + '%';
+                document.getElementById('modalTotalGirado').textContent = formatter.format(totalGirado);
+                document.getElementById('modalTotalGiroPct').textContent = totalGiroPct.toFixed(2) + '%';
+                document.getElementById('modalTotalCortadas').textContent = formatter.format(totalCortadas);
+                document.getElementById('modalTotalCortasPct').textContent = totalCortasPct.toFixed(2) + '%';
+                document.getElementById('modalTotalDespachoAlmacen').textContent = formatter.format(totalDespachoAlmacen);
+                document.getElementById('modalTotalDespPct').textContent = totalDespPct.toFixed(2) + '%';
+
+            } catch (err) {
+                console.error('Error cargando detalle base por cliente', err);
+                body.innerHTML = '<tr><td colspan="6" class="py-2 text-center text-gray-400">Error cargando datos</td></tr>';
+            }
+        }
+        
+        // Función para filtrar datos de la hoja base por cliente (en memoria)
+        function filtrarBaseByCliente(clienteBuscado) {
+            if (!rawDataBase || rawDataBase.length <= 1) return [];
+            
+            const headers = rawDataBase[0];
+            const results = [];
+            
+            // Encontrar índices de columnas necesarias
+            const findColIndex = (name) => {
+                const nameLower = name.toLowerCase();
+                return headers.findIndex(h => h && h.toString().toLowerCase().includes(nameLower));
+            };
+            
+            const colAnio = findColIndex('año');
+            const colMes = findColIndex('mes');
+            const colCliente = findColIndex('cliente');
+            const colEstilo = findColIndex('estilo');
+            const colPedido = findColIndex('prendas pedido');
+            const colPedidoHM = findColIndex('prendas pedido hm');
+            const colProg = findColIndex('prendas prog');
+            const colGirado = findColIndex('prendas girado');
+            const colCortadas = findColIndex('prendas cortadas neto');
+            const colDespachoAlmacen = findColIndex('prendas despacho almacen');
+            
+            if (colCliente === -1) {
+                console.warn('Columna CLIENTE no encontrada en base');
+                return [];
+            }
+            
+            // Encontrar el último año y mes disponible (igual que en cargarDatosClientes)
+            let ultimoAnio = null;
+            let ultimoMes = null;
+            const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
+            
+            if (colAnio !== -1 && colMes !== -1) {
+                for (let i = 1; i < rawDataBase.length; i++) {
+                    const row = rawDataBase[i];
+                    const anio = row[colAnio];
+                    const mes = row[colMes];
+                    
+                    if (anio && mes) {
+                        if (ultimoAnio === null || anio > ultimoAnio) {
+                            ultimoAnio = anio;
+                            ultimoMes = mes;
+                        } else if (anio === ultimoAnio) {
+                            const mesIdx = monthNames.indexOf(String(mes));
+                            const ultimoMesIdx = monthNames.indexOf(String(ultimoMes));
+                            if (mesIdx > ultimoMesIdx) {
+                                ultimoMes = mes;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Filtrar y agrupar por estilo (solo del último mes)
+            const estiloMap = {};
+            
+            for (let i = 1; i < rawDataBase.length; i++) {
+                const row = rawDataBase[i];
+                
+                // Filtrar por último año/mes si están disponibles
+                if (colAnio !== -1 && colMes !== -1 && ultimoAnio !== null && ultimoMes !== null) {
+                    if (row[colAnio] !== ultimoAnio || row[colMes] !== ultimoMes) {
+                        continue;
+                    }
+                }
+                
+                const cliente = (row[colCliente] || '').toString().trim();
+                
+                // Comparar cliente ignorando mayúsculas
+                if (cliente.toLowerCase() !== clienteBuscado.toLowerCase()) continue;
+                
+                const estilo = colEstilo !== -1 ? (row[colEstilo] || '').toString() : '';
+                const pedido = colPedido !== -1 ? (parseFloat(row[colPedido]) || 0) : 0;
+                const pedidoHM = colPedidoHM !== -1 ? (parseFloat(row[colPedidoHM]) || 0) : 0;
+                const prog = colProg !== -1 ? (parseFloat(row[colProg]) || 0) : 0;
+                const girado = colGirado !== -1 ? (parseFloat(row[colGirado]) || 0) : 0;
+                const cortadas = colCortadas !== -1 ? (parseFloat(row[colCortadas]) || 0) : 0;
+                const despachoAlmacen = colDespachoAlmacen !== -1 ? (parseFloat(row[colDespachoAlmacen]) || 0) : 0;
+                
+                // Agrupar por estilo
+                if (!estiloMap[estilo]) {
+                    estiloMap[estilo] = {
+                        estilo: estilo,
+                        pedido: 0,
+                        pedidoHM: 0,
+                        prog: 0,
+                        girado: 0,
+                        cortadas: 0,
+                        despachoAlmacen: 0
+                    };
+                }
+                
+                estiloMap[estilo].pedido += pedido;
+                estiloMap[estilo].pedidoHM += pedidoHM;
+                estiloMap[estilo].prog += prog;
+                estiloMap[estilo].girado += girado;
+                estiloMap[estilo].cortadas += cortadas;
+                estiloMap[estilo].despachoAlmacen += despachoAlmacen;
+            }
+            
+            return Object.values(estiloMap);
+        }
+
         function actualizarGraficoClientes(data) {
             if (!charts.clientes || !data || data.length === 0) return;
 
@@ -1569,72 +2110,116 @@
                 }
             }
 
-            // Cargar acciones desde la hoja 'acciones' via SCRIPT_URL y filtrar por columna 'Pestaña'
+            // Cargar acciones desde la hoja 'acciones' via Google Visualization API y filtrar por columna 'Pestaña'
             async function cargarAcciones() {
                 const tbody = document.getElementById('tablaAccionesBody');
                 const thead = document.getElementById('tablaAccionesHead');
                 const info = document.getElementById('accionesFilterInfo');
+                
                 if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Cargando...</td></tr>';
                 if (thead) thead.innerHTML = '';
                 if (info) info.textContent = '';
 
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-                    const response = await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        redirect: 'follow',
-                        credentials: 'omit',
-                        signal: controller.signal,
-                        body: JSON.stringify({ action: 'getAcciones' })
-                    });
-
-                    clearTimeout(timeoutId);
-                    const result = await response.json();
-                    if (!(result && result.status === 'success' && Array.isArray(result.data))) {
-                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">No hay datos de acciones</td></tr>';
-                        // Crear botón + con columnas por defecto
+                return new Promise((resolve, reject) => {
+                    try {
+                        // Crear un callback único para esta carga
+                        const callbackName = 'loadAccionesCallback_' + Date.now();
+                        
+                        // Definir el callback globalmente
+                        window[callbackName] = function(jsonResponse) {
+                            try {
+                                if (!jsonResponse || !jsonResponse.table) {
+                                    throw new Error("Respuesta inválida desde Google Visualization API");
+                                }
+                                
+                                const cols = jsonResponse.table.cols.map(col => col.label || col.id || '');
+                                const rows = jsonResponse.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? cell.v : ""));
+                                
+                                // Convertir a array de objetos
+                                const allRows = rows.map(row => {
+                                    const obj = {};
+                                    cols.forEach((col, idx) => {
+                                        obj[col] = row[idx];
+                                    });
+                                    return obj;
+                                });
+                                
+                                if (!allRows || allRows.length === 0) {
+                                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">No hay datos de acciones</td></tr>';
+                                    const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                                    crearBotonAgregar(defaultColumns);
+                                    // Limpiar callback
+                                    delete window[callbackName];
+                                    resolve();
+                                    return;
+                                }
+                                
+                                // Detectar la clave de la columna que contiene 'pesta'
+                                const pestaKey = cols.find(k => k && k.toLowerCase().includes('pesta')) || 'Pestaña';
+                                const activeBtn = document.querySelector('.tab-button.active');
+                                const currentTabName = activeBtn ? activeBtn.innerText.trim() : 'Pds por regularizar';
+                                
+                                // Filtrar por pestaña actual
+                                const filtered = allRows.filter(r => {
+                                    const val = r[pestaKey];
+                                    return String(val || '').trim().toLowerCase() === currentTabName.toLowerCase();
+                                });
+                                
+                                // Crear botón '+' para agregar filas
+                                crearBotonAgregar(cols);
+                                
+                                // Renderizar tabla
+                                renderTablaAcciones(filtered, cols);
+                                
+                                // Limpiar callback
+                                delete window[callbackName];
+                                resolve();
+                            } catch (err) {
+                                console.error('Error procesando datos de acciones:', err);
+                                if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Error al procesar acciones</td></tr>';
+                                const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                                crearBotonAgregar(defaultColumns);
+                                delete window[callbackName];
+                                reject(err);
+                            }
+                        };
+                        
+                        // Crear script para cargar datos
+                        const script = document.createElement('script');
+                        script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=acciones&tqx=responseHandler:${callbackName}`;
+                        script.onerror = () => {
+                            console.error('Error cargando datos desde Google Visualization API');
+                            if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Error al cargar acciones</td></tr>';
+                            const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                            crearBotonAgregar(defaultColumns);
+                            delete window[callbackName];
+                            reject(new Error('Network error loading acciones'));
+                        };
+                        
+                        // Timeout de 15 segundos
+                        const timeoutId = setTimeout(() => {
+                            if (window[callbackName]) {
+                                console.error('Timeout cargando acciones');
+                                if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Timeout al cargar acciones</td></tr>';
+                                const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
+                                crearBotonAgregar(defaultColumns);
+                                delete window[callbackName];
+                                reject(new Error('Timeout loading acciones'));
+                            }
+                        }, 15000);
+                        
+                        // Guardar timeoutId en el callback para poder limpiarlo
+                        window[callbackName]._timeoutId = timeoutId;
+                        
+                        document.body.appendChild(script);
+                    } catch (err) {
+                        console.error('Error iniciando carga de acciones:', err);
+                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Error al cargar acciones</td></tr>';
                         const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
                         crearBotonAgregar(defaultColumns);
-                        return;
+                        reject(err);
                     }
-
-                    const allRows = result.data;
-                    if (!allRows || allRows.length === 0) {
-                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">No hay datos de acciones</td></tr>';
-                        // Crear botón + con columnas por defecto
-                        const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
-                        crearBotonAgregar(defaultColumns);
-                        return;
-                    }
-
-                    // Detectar la clave de la columna que contiene 'pesta' (p. ej. 'Pestaña')
-                    const sample = allRows[0] || {};
-                    const pestaKey = Object.keys(sample).find(k => k && k.toLowerCase().includes('pesta')) || 'Pestaña';
-                    const activeBtn = document.querySelector('.tab-button.active');
-                    const currentTabName = activeBtn ? activeBtn.innerText.trim() : 'Pds por regularizar';
-
-                    const filtered = allRows.filter(r => {
-                        const val = r[pestaKey];
-                        return String(val || '').trim().toLowerCase() === currentTabName.toLowerCase();
-                    });
-
-                    // Mostrar info de filtro
-                    // Reemplazar texto por botón '+' para agregar filas editables
-                    const columns = Object.keys(sample || {});
-                    crearBotonAgregar(columns);
-
-                    // Renderizar tabla con columnas en orden del primer objeto
-                    renderTablaAcciones(filtered, columns);
-                } catch (err) {
-                    console.error('Error cargando acciones:', err);
-                    const tbody = document.getElementById('tablaAccionesBody');
-                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-400">Error al cargar acciones</td></tr>';
-                    // Crear botón + con columnas por defecto
-                    const defaultColumns = ['Pestaña', 'Problema', 'Acciones', 'Responsable', 'Fecha Fin'];
-                    crearBotonAgregar(defaultColumns);
-                }
+                });
             }
 
             function renderTablaAcciones(rows, columns) {
