@@ -113,13 +113,17 @@
             <!-- Tabs de navegación -->
             <div class="flex items-center gap-2 ml-4 border-l pl-4 border-gray-300">
                 <button id="tabPdsRegularizar" class="tab-button active" onclick="switchTab('pdsRegularizar')">
-                    <i class="fa-solid fa-chart-column mr-1"></i>Pds por regularizar
+                    <i class="fa-solid fa-chart-column mr-1"></i>Pds no reportadas
                 </button>
                 <button id="tabSaldos" class="tab-button" onclick="switchTab('saldos')">
                     <i class="fa-solid fa-layer-group mr-1"></i>Saldos
                 </button>
                 <button id="tabSaldo1raCliente" class="tab-button" onclick="switchTab('saldo1raCliente')">
                     <i class="fa-solid fa-users mr-1"></i>Saldo 1ra x Cliente
+                </button>
+                <button id="tabHOD" class="tab-button relative" onclick="switchTab('hod')" title="HOD">
+                    <i class="fa-solid fa-plane mr-1"></i>
+                    <span class="absolute top-0 right-0 h-2 w-2 bg-blue-600 rounded-full"></span>
                 </button>
             </div>
         </div>
@@ -166,18 +170,23 @@
 
     <!-- BLOQUE INFERIOR: Contenido con Tabs -->
     
-    <!-- Tab 1: Pds por regularizar -->
+    <!-- Tab 1: Pds no reportadas -->
     <div id="contentPdsRegularizar" class="tab-content active flex-1 flex flex-col gap-1 min-h-0">
         <!-- Gráfico 1: Ingreso Neto vs %Diferencia -->
         <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative min-h-0" style="flex: 0 0 60%;">
             <div class="flex items-start justify-between mb-2">
-                <h3 id="chart1Title" class="text-gray-600 font-bold">Ingresos vs Liquidación</h3>
+                <div class="flex items-center gap-2">
+                    <button id="btnModalClienteChart" title="Ver por Cliente" class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 shadow-sm transition-all">
+                        <i class="fa-solid fa-user"></i>
+                    </button>
+                    <h3 id="chart1Title" class="text-gray-600 font-bold">Ingreso Neto vs No reportadas</h3>
+                </div>
                 <div id="chart1Legend" class="flex items-center gap-4"></div>
             </div>
             <div class="flex-1 w-full min-h-0 relative"><canvas id="chart1" style="width:100% !important; height:100% !important; display:block;"></canvas></div>
         </div>
             <!-- Bloque Acciones: tabla tomada desde la hoja 'acciones' filtrada por columna 'Pestaña' -->
-            <div id="accionesBlock" class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 mt-1 flex flex-col min-h-0" style="flex: 0 0 30%;">
+            <div id="accionesBlock" class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 mt-1 flex flex-col min-h-0" style="flex: 0 0 40.5%;">
                 <div class="flex items-center justify-between mb-2">
                 <h3 class="text-gray-600 font-bold">Acciones</h3>
                 <div id="accionesFilterInfo" class="text-xs text-gray-500"></div>
@@ -203,7 +212,6 @@
                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold">1</span>
                     Saldos 1ra
                 </h3>
-                <span class="text-xs text-gray-400 font-medium">Ingreso Neto vs %Saldo</span>
             </div>
             <div class="flex-1 w-full min-h-0 relative">
                 <canvas id="chart5" style="width:100% !important; height:100% !important; display:block;"></canvas>
@@ -217,7 +225,6 @@
                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 text-amber-600 text-sm font-bold">2</span>
                     Saldos 2da
                 </h3>
-                <span class="text-xs text-gray-400 font-medium">Ingreso Neto vs %Saldo</span>
             </div>
             <div class="flex-1 w-full min-h-0 relative">
                 <canvas id="chart2" style="width:100% !important; height:100% !important; display:block;"></canvas>
@@ -231,7 +238,6 @@
                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-100 text-red-600 text-sm font-bold">3</span>
                     Saldos 3ra
                 </h3>
-                <span class="text-xs text-gray-400 font-medium">Ingreso Neto vs %Saldo</span>
             </div>
             <div class="flex-1 w-full min-h-0 relative">
                 <canvas id="chart3" style="width:100% !important; height:100% !important; display:block;"></canvas>
@@ -245,7 +251,7 @@
         <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative gap-2">
             <div class="flex items-center justify-between mb-0">
                 <h3 class="text-gray-600 font-bold">Detalle por Cliente de Saldos 1ra</h3>
-                <span id="clientePeriodo" class="text-xs text-gray-500 font-medium"></span>
+                <span id="clientePeriodo" class="text-lg text-gray-700 font-bold"></span>
             </div>
             
             <!-- Contenedor flex para tabla y gráfico lado a lado -->
@@ -275,15 +281,51 @@
         </div>
     </div>
 
+    <!-- Tab 4: HOD -->
+    <div id="contentHOD" class="tab-content flex-1 flex flex-col gap-4 min-h-0">
+        <!-- Detalle por Cliente de Saldos 1ra: Tabla + Gráfico (igual a Tab 3) -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 flex flex-col relative gap-2">
+            <div class="flex items-center justify-between mb-0">
+                <h3 class="text-gray-600 font-bold">Detalle por Cliente de Pds Despachadas</h3>
+                <span id="hodPeriodo" class="text-lg text-gray-700 font-bold"></span>
+            </div>
+            
+            <!-- Contenedor flex para tabla y gráfico lado a lado -->
+            <div class="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
+                <!-- Tabla de clientes (50% ancho en desktop) -->
+                <div class="w-full md:w-1/2 overflow-auto min-h-0 max-h-full">
+                    <table id="tablaClientesHOD" class="w-full text-sm">
+                        <thead class="bg-gray-800 sticky top-0">
+                            <tr class="text-left text-xs font-bold text-white">
+                                <th class="py-2 px-2 border-b">Cliente</th>
+                                <th class="py-2 px-2 border-b">Tipo</th>
+                                <th class="py-2 px-2 border-b text-right">Prendas Pedido</th>
+                                <th class="py-2 px-2 border-b text-right">Prendas Ingreso Neto</th>
+                                <th class="py-2 px-2 border-b text-right">Pds desp.</th>
+                                <th class="py-2 px-2 border-b text-right">%Desp.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaClientesHODBody" class="text-gray-700">
+                            <tr><td colspan="6" class="py-2 text-center text-gray-400">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Gráfico de clientes (50% ancho en desktop) -->
+                <div class="w-full md:w-1/2 min-h-0 relative bg-blue-50 rounded-lg p-3" style="min-height: 300px;"><canvas id="chartClientesHOD" style="display:block; width:100% !important; height:100% !important;"></canvas></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Detalle %Saldo 1ra por Cliente -->
     <div id="modalSaldo1raDetalle" class="hidden fixed inset-0 z-50 flex items-center justify-center">
         <div class="absolute inset-0 bg-black opacity-40" id="modalSaldoOverlay"></div>
-        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 lg:w-2/3 z-50 flex flex-col max-h-[80vh]">
-            <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-20">
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 lg:w-2/3 z-50 flex flex-col max-h-[80vh] p-6">
+            <div class="flex items-center justify-between pb-4 border-b sticky top-0 bg-white z-20 -mx-6 px-6 -mt-6 pt-6">
                 <h4 id="modalSaldoTitle" class="text-lg font-bold">Cliente - %Saldo 1ra</h4>
                 <button id="modalSaldoClose" class="text-gray-600 hover:text-gray-900">Cerrar ✕</button>
             </div>
-            <div class="p-4 overflow-auto flex-1">
+            <div class="overflow-auto flex-1 mt-4">
                 <table id="modalSaldoTable" class="w-full text-sm">
                     <thead class="bg-gray-100 sticky top-0 z-10">
                         <tr class="text-left text-xs font-bold text-gray-700">
@@ -296,6 +338,8 @@
                             <th class="py-1 px-1 border text-right text-xs">%Giro</th>
                             <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Cortadas<br>Neto</th>
                             <th class="py-1 px-1 border text-right text-xs">%Corte</th>
+                            <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Ingreso<br>Neto</th>
+                            <th class="py-1 px-1 border text-right text-xs">%Ing.</th>
                             <th class="py-1 px-1 border text-right whitespace-normal text-xs">Prendas<br>Despacho<br>Almacen</th>
                             <th class="py-1 px-1 border text-right text-xs">%Desp.</th>
                         </tr>
@@ -312,12 +356,35 @@
                             <td id="modalTotalGiroPct" class="py-1 px-1 border text-right">0%</td>
                             <td id="modalTotalCortadas" class="py-1 px-1 border text-right">0</td>
                             <td id="modalTotalCortasPct" class="py-1 px-1 border text-right">0%</td>
+                            <td id="modalTotalIngresoNeto" class="py-1 px-1 border text-right">0</td>
+                            <td id="modalTotalIngresoPct" class="py-1 px-1 border text-right">0%</td>
                             <td id="modalTotalDespachoAlmacen" class="py-1 px-1 border text-right">0</td>
                             <td id="modalTotalDespPct" class="py-1 px-1 border text-right">0%</td>
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ingreso Neto vs Diferencia por Cliente -->
+    <div id="modalClienteChart" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black opacity-40" id="modalClienteChartOverlay"></div>
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-4/5 lg:w-3/4 z-50 flex flex-col max-h-[85vh] p-6">
+            <div class="flex items-center justify-between pb-4 border-b sticky top-0 bg-white z-20 -mx-6 px-6 -mt-6 pt-6">
+                <h4 id="modalClienteChartTitle" class="text-lg font-bold">Ingreso Neto vs Diferencia por Cliente</h4>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-gray-500 uppercase">Cliente:</span>
+                        <select id="modalClienteFilter" class="filter-select bg-white min-w-[180px]">
+                            <option value="">Todos los clientes</option>
+                        </select>
+                    </div>
+                    <button id="modalClienteChartClose" class="text-gray-600 hover:text-gray-900 font-semibold">Cerrar ✕</button>
                 </div>
+            </div>
+            <div class="flex-1 mt-4 min-h-0" style="min-height: 400px;">
+                <canvas id="chartClienteModal" style="width:100% !important; height:100% !important; display:block;"></canvas>
             </div>
         </div>
     </div>
@@ -370,6 +437,19 @@
                 // Forzar redimensionamiento del gráfico
                 setTimeout(() => {
                     if (charts.clientes) charts.clientes.resize();
+                }, 50);
+                // Recargar acciones para la pestaña actual
+                cargarAcciones().catch(e => console.warn('Error recargando acciones:', e));
+                // Limpiar caché y recargar datos de clientes
+                cache.clientes = null;
+                cache.timestamp = null;
+                cargarDatosClientes().catch(e => console.warn('Error recargando clientes:', e));
+            } else if (tabName === 'hod') {
+                document.getElementById('contentHOD').classList.add('active');
+                document.getElementById('tabHOD').classList.add('active');
+                // Forzar redimensionamiento del gráfico
+                setTimeout(() => {
+                    if (charts.clientesHOD) charts.clientesHOD.resize();
                 }, 50);
                 // Recargar acciones para la pestaña actual
                 cargarAcciones().catch(e => console.warn('Error recargando acciones:', e));
@@ -1011,7 +1091,7 @@
 
                             // if multiple line datasets, stack upward (vertical shift)
                             const stackSpacing = lineFontSize + 4;
-                            const isChart1 = chart && chart.canvas && (chart.canvas.id === 'chart1' || chart.canvas.id === 'chartClientes');
+                            const isChart1 = chart && chart.canvas && (chart.canvas.id === 'chart1' || chart.canvas.id === 'chartClientes' || chart.canvas.id === 'chartClientesHOD' || chart.canvas.id === 'chartClienteModal');
 
                             if (isChart1) {
                                 // Etiqueta centrada arriba del punto
@@ -1138,17 +1218,26 @@
                         barBaseLabels: { fontSize: 14, lineFontSize: 16, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 },
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 4,
+                            titleSpacing: 4,
+                            bodySpacing: 6,
                             callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    // Para charts horizontales las líneas usan x1 como eje secundario
+                                    // Solo mostrar Pds Despacho para la barra, nada para la línea
                                     if (context.dataset.xAxisID === 'x1') {
-                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.x) + '%';
-                                    } else {
-                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.x);
+                                        return '';
                                     }
-                                    return label;
+                                    // Para la serie de barras, mostrar solo Pds Despacho
+                                    if (context.dataset.prendasDespacho) {
+                                        const prendasDesp = context.dataset.prendasDespacho[context.dataIndex] || 0;
+                                        return 'Pds Despacho: ' + new Intl.NumberFormat('es-PE').format(prendasDesp);
+                                    }
+                                    return '';
                                 }
                             }
                         }
@@ -1192,16 +1281,26 @@
                         barBaseLabels: { fontSize: 14, lineFontSize: 16, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 },
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 4,
+                            titleSpacing: 4,
+                            bodySpacing: 6,
                             callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
+                                    // Solo mostrar Pds Despacho para la barra, nada para la línea
                                     if (context.dataset.xAxisID === 'x1') {
-                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.x) + '%';
-                                    } else {
-                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.x);
+                                        return '';
                                     }
-                                    return label;
+                                    // Para la serie de barras, mostrar solo Pds Despacho
+                                    if (context.dataset.prendasDespacho) {
+                                        const prendasDesp = context.dataset.prendasDespacho[context.dataIndex] || 0;
+                                        return 'Pds Despacho: ' + new Intl.NumberFormat('es-PE').format(prendasDesp);
+                                    }
+                                    return '';
                                 }
                             }
                         }
@@ -1251,15 +1350,27 @@
                         },
                         tooltip: {
                             callbacks: {
+                                title: function(context) {
+                                    return context[0].label || '';
+                                },
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.dataset.yAxisID === 'y1') {
-                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.y) + '%';
-                                    } else {
-                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.y);
+                                    const datasetIndex = context.datasetIndex;
+                                    const dataIndex = context.dataIndex;
+                                    
+                                    // Para la serie de barras (Prendas Ingreso Neto)
+                                    if (datasetIndex === 0) {
+                                        const prendasDesp = context.dataset.prendasDespacho ? context.dataset.prendasDespacho[dataIndex] : 0;
+                                        const prendasPedido = context.dataset.prendasPedido ? context.dataset.prendasPedido[dataIndex] : 0;
+                                        const porcDesp = prendasPedido ? (prendasDesp / prendasPedido) * 100 : 0;
+                                        
+                                        return [
+                                            'Pds desp.: ' + new Intl.NumberFormat('es-PE').format(prendasDesp),
+                                            '%Desp.: ' + new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(porcDesp) + '%'
+                                        ];
                                     }
-                                    return label;
+                                    
+                                    // Para la línea
+                                    return '';
                                 }
                             }
                         }
@@ -1286,6 +1397,148 @@
                 }
             });
 
+            // Chart Clientes HOD: Análisis por Cliente (barras + línea)
+            const ctxClientesHOD = document.getElementById('chartClientesHOD').getContext('2d');
+            charts.clientesHOD = new Chart(ctxClientesHOD, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Pds desp.', data: [], backgroundColor: '#7dd3fc', yAxisID: 'y', order: 2 },
+                        { label: '%Saldo 1ra', data: [], type: 'line', borderColor: '#ef4444', backgroundColor: '#ef4444', pointBackgroundColor: '#ef4444', yAxisID: 'y1', order: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 8 } },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        barBaseLabels: {
+                            color: '#374151',
+                            fontSize: 16,
+                            fontFamily: 'Helvetica Neue, Arial',
+                            padding: 3,
+                            lineColor: '#ef4444',
+                            lineOffset: 10
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label || '';
+                                },
+                                label: function(context) {
+                                    const datasetIndex = context.datasetIndex;
+                                    const dataIndex = context.dataIndex;
+                                    
+                                    // Para la serie de barras (Pds desp.)
+                                    if (datasetIndex === 0) {
+                                        const prendasDesp = context.dataset.prendasDespacho ? context.dataset.prendasDespacho[dataIndex] : 0;
+                                        const porcDesp = context.dataset.porcDesp ? context.dataset.porcDesp[dataIndex] : 0;
+                                        
+                                        return [
+                                            'Pds desp.: ' + new Intl.NumberFormat('es-PE').format(prendasDesp),
+                                            '%Desp.: ' + new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(porcDesp) + '%'
+                                        ];
+                                    }
+                                    
+                                    // Para la línea
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: { callback: val => formatShortNumber(val), font: { weight: 'bold' } }
+                        },
+                        y1: {
+                            position: 'right',
+                            display: false,
+                            beginAtZero: true,
+                            min: -5,
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(val) {
+                                    return val.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart Modal Cliente: Ingreso Neto vs Diferencia por Cliente
+            const ctxClienteModal = document.getElementById('chartClienteModal').getContext('2d');
+            charts.clienteModal = new Chart(ctxClienteModal, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Ingreso Neto', data: [], backgroundColor: '#3b82f6', order: 2, yAxisID: 'y', pointStyle: 'circle' },
+                        { label: 'Diferencia', data: [], backgroundColor: '#f97316', order: 2, yAxisID: 'y', pointStyle: 'circle' },
+                        { label: '% Dif', data: [], type: 'line', borderColor: '#ef4444', backgroundColor: '#ef4444', pointBackgroundColor: '#ef4444', pointBorderColor: '#ef4444', yAxisID: 'y1', order: 1, tension: 0.1, pointStyle: 'circle' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 16 } },
+                    plugins: {
+                        legend: { 
+                            position: 'top',
+                            align: 'end',
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        },
+                        barBaseLabels: {
+                            color: '#374151',
+                            fontSize: 18,
+                            fontFamily: 'Helvetica Neue, Arial',
+                            padding: 1,
+                            lineColor: '#ef4444',
+                            lineOffset: 6,
+                            lineFontSize: 16
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.dataset.yAxisID === 'y1') {
+                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.y) + '%';
+                                    } else {
+                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#374151', font: { weight: 'bold', size: 14 } } },
+                        y: { 
+                            position: 'left',
+                            ticks: { callback: val => formatShortNumber(val), color: '#374151', font: { weight: 'bold', size: 14 } }
+                        },
+                        y1: { 
+                            position: 'right',
+                            display: false,
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(val) {
+                                    return val.toFixed(2) + '%';
+                                },
+                                color: '#ef4444',
+                                font: { weight: 'bold', size: 14 }
+                            }
+                        }
+                    }
+                }
+            });
+
             // Chart 5: Saldos 1ra (Horizontal bar + line)
             const ctx5 = document.getElementById('chart5').getContext('2d');
             charts.c5 = new Chart(ctx5, {
@@ -1306,16 +1559,26 @@
                         barBaseLabels: { fontSize: 14, lineFontSize: 16, color: '#374151', fontFamily: 'Helvetica Neue, Arial', padding: 3 },
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 4,
+                            titleSpacing: 4,
+                            bodySpacing: 6,
                             callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
+                                    // Solo mostrar Pds Despacho para la barra, nada para la línea
                                     if (context.dataset.xAxisID === 'x1') {
-                                        label += new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(context.parsed.x) + '%';
-                                    } else {
-                                        label += new Intl.NumberFormat('es-PE').format(context.parsed.x);
+                                        return '';
                                     }
-                                    return label;
+                                    // Para la serie de barras, mostrar solo Pds Despacho
+                                    if (context.dataset.prendasDespacho) {
+                                        const prendasDesp = context.dataset.prendasDespacho[context.dataIndex] || 0;
+                                        return 'Pds Despacho: ' + new Intl.NumberFormat('es-PE').format(prendasDesp);
+                                    }
+                                    return '';
                                 }
                             }
                         }
@@ -1410,10 +1673,11 @@
             // Agregar saldos a los datos filtrados
             dataFiltrada.forEach(item => {
                 const key = `${item.anio}|${item.mes}`;
-                const saldos = saldosMap[key] || { saldos1ra: 0, saldos2da: 0, saldos3ra: 0 };
+                const saldos = saldosMap[key] || { saldos1ra: 0, saldos2da: 0, saldos3ra: 0, prendasDespacho: 0 };
                 item.saldos1ra = saldos.saldos1ra;
                 item.saldos2da = saldos.saldos2da;
                 item.saldos3ra = saldos.saldos3ra;
+                item.prendasDespacho = saldos.prendasDespacho;
             });
             
             procesarDatos(dataFiltrada);
@@ -1433,6 +1697,8 @@
                 const colSaldo1 = 78; // CA (índice 78)
                 const colSaldo2 = 82; // CE (índice 82)
                 const colSaldo3 = 86; // CI (índice 86)
+                // Buscar índice de columna "Prendas Despacho Almacen"
+                const colPrendasDespacho = headers.findIndex(h => h && h.toString().toLowerCase().includes('prendas despacho almacen'));
                 
                 for (let i = 1; i < rawDataBase.length; i++) {
                     const row = rawDataBase[i];
@@ -1443,12 +1709,15 @@
                     const key = `${anio}|${mes}`;
                     
                     if (!saldosMap[key]) {
-                        saldosMap[key] = { saldos1ra: 0, saldos2da: 0, saldos3ra: 0 };
+                        saldosMap[key] = { saldos1ra: 0, saldos2da: 0, saldos3ra: 0, prendasDespacho: 0 };
                     }
                     
                     saldosMap[key].saldos1ra += parseFloat(row[colSaldo1]) || 0;
                     saldosMap[key].saldos2da += parseFloat(row[colSaldo2]) || 0;
                     saldosMap[key].saldos3ra += parseFloat(row[colSaldo3]) || 0;
+                    if (colPrendasDespacho !== -1) {
+                        saldosMap[key].prendasDespacho += parseFloat(row[colPrendasDespacho]) || 0;
+                    }
                 }
             } catch (error) {
                 console.warn('Error calculando saldos:', error);
@@ -1480,6 +1749,9 @@
             const dataPorcSaldos2da = [];
             const dataSaldos3ra = [];
             const dataPorcSaldos3ra = [];
+            const dataPrendasDespacho1ra = [];
+            const dataPrendasDespacho2da = [];
+            const dataPrendasDespacho3ra = [];
 
             // Procesar datos una sola vez
             data.forEach(item => {
@@ -1490,6 +1762,7 @@
                 const saldos1ra = parseFloat(item.saldos1ra) || 0;
                 const saldos2da = parseFloat(item.saldos2da) || 0;
                 const saldos3ra = parseFloat(item.saldos3ra) || 0;
+                const prendasDespacho = parseFloat(item.prendasDespacho) || 0;
                 const porc = (parseFloat(item.porcentaje) || 0) * 100;
                 
                 dataIngreso.push(ing);
@@ -1498,6 +1771,9 @@
                 dataSaldos2da.push(saldos2da);
                 dataSaldos3ra.push(saldos3ra);
                 dataPorcentaje.push(Number(porc.toFixed(2)));
+                dataPrendasDespacho1ra.push(prendasDespacho);
+                dataPrendasDespacho2da.push(prendasDespacho);
+                dataPrendasDespacho3ra.push(prendasDespacho);
 
                 // Cálculos de porcentajes
                 dataPorcSaldos1ra.push(ing !== 0 ? Number(((saldos1ra / ing) * 100).toFixed(2)) : 0);
@@ -1517,6 +1793,7 @@
                 // Gráfico 2
                 charts.c2.data.labels = labels;
                 charts.c2.data.datasets[0].data = dataSaldos2da;
+                charts.c2.data.datasets[0].prendasDespacho = dataPrendasDespacho2da;
                 charts.c2.data.datasets[1].data = dataPorcSaldos2da;
                 ajustarEjeX1(charts.c2, dataPorcSaldos2da, -0.3);
 
@@ -1524,6 +1801,7 @@
                 if (charts.c3) {
                     charts.c3.data.labels = labels;
                     charts.c3.data.datasets[0].data = dataSaldos3ra;
+                    charts.c3.data.datasets[0].prendasDespacho = dataPrendasDespacho3ra;
                     charts.c3.data.datasets[1].data = dataPorcSaldos3ra;
                     ajustarEjeX1(charts.c3, dataPorcSaldos3ra, -5);
                 }
@@ -1531,6 +1809,7 @@
                 // Gráfico 5
                 charts.c5.data.labels = labels;
                 charts.c5.data.datasets[0].data = dataSaldos1ra;
+                charts.c5.data.datasets[0].prendasDespacho = dataPrendasDespacho1ra;
                 charts.c5.data.datasets[1].data = dataPorcSaldos1ra;
                 ajustarEjeX1(charts.c5, dataPorcSaldos1ra, -7);
 
@@ -1580,6 +1859,8 @@
             if (cache.clientes && cache.timestamp && (now - cache.timestamp) < cache.TTL) {
                 actualizarTablaClientes(cache.clientes);
                 actualizarGraficoClientes(cache.clientes);
+                actualizarTablaClientesHOD(cache.clientes);
+                actualizarGraficoClientesHOD(cache.clientes);
                 return;
             }
             
@@ -1605,6 +1886,7 @@
                             const prendasPedidoIdx = 11; // Columna L
                             const prendasIngresoNetoIdx = 52; // Columna BA
                             const saldos1raIdx = 78; // Columna CA
+                            const prendasDespachoIdx = cols.findIndex(c => c && c.toLowerCase().includes('prendas despacho almacen'));
                             const tipoOpIdx = cols.findIndex(c => {
                                 const h = String(c || '').toLowerCase();
                                 return (h.includes('tipo') && (h.includes('op') || h.includes('o.p') || h.includes('orden'))) || h === 'tipo op';
@@ -1653,6 +1935,7 @@
                                     const prendasPedido = parseFloat(row[prendasPedidoIdx]) || 0;
                                     const prendasIngresoNeto = parseFloat(row[prendasIngresoNetoIdx]) || 0;
                                     const saldos1ra = parseFloat(row[saldos1raIdx]) || 0;
+                                    const prendasDespacho = prendasDespachoIdx !== -1 ? (parseFloat(row[prendasDespachoIdx]) || 0) : 0;
                                     const tipoOp = tipoOpIdx !== -1 ? (row[tipoOpIdx] || '') : '';
                                     
                                     const key = cliente + '|' + (tipoOp || '');
@@ -1663,6 +1946,7 @@
                                             prendasPedido: 0,
                                             prendasIngresoNeto: 0,
                                             saldos1ra: 0,
+                                            prendasDespacho: 0,
                                             anio: ultimoAnio,
                                             mes: ultimoMes
                                         };
@@ -1671,6 +1955,7 @@
                                     clienteMap[key].prendasPedido += prendasPedido;
                                     clienteMap[key].prendasIngresoNeto += prendasIngresoNeto;
                                     clienteMap[key].saldos1ra += saldos1ra;
+                                    clienteMap[key].prendasDespacho += prendasDespacho;
                                 }
                             });
                             
@@ -1693,6 +1978,8 @@
                             
                             actualizarTablaClientes(clienteData);
                             actualizarGraficoClientes(clienteData);
+                            actualizarTablaClientesHOD(clienteData);
+                            actualizarGraficoClientesHOD(clienteData);
                             
                             // Limpiar callback
                             delete window[callbackName];
@@ -1745,7 +2032,7 @@
 
             // Mostrar periodo en el encabezado
             if (data[0].anio && data[0].mes) {
-                periodo.textContent = `${data[0].mes} ${data[0].anio}`;
+                periodo.textContent = `Gráfico producción (no muestras) - ${data[0].mes} ${data[0].anio}`;
             }
 
             // Calcular totales
@@ -1880,7 +2167,7 @@
                 });
 
                 const modalFragment = document.createDocumentFragment();
-                let totalPedido = 0, totalPedidoHM = 0, totalProg = 0, totalGirado = 0, totalCortadas = 0, totalDespachoAlmacen = 0;
+                let totalPedido = 0, totalPedidoHM = 0, totalProg = 0, totalGirado = 0, totalCortadas = 0, totalDespachoAlmacen = 0, totalIngresoNeto = 0;
 
                 rows.forEach(r => {
                     const tr = document.createElement('tr');
@@ -1892,10 +2179,12 @@
                     const girado = Number(r.girado) || 0;
                     const cortadas = Number(r.cortadas) || 0;
                     const despachoAlmacen = Number(r.despachoAlmacen) || 0;
+                    const ingresoNeto = Number(r.ingresoNeto) || 0;
                     const progPct = pedido ? (prog / pedido * 100) : 0;
                     const giroPct = pedido ? (girado / pedido * 100) : 0;
                     const cortasPct = pedido ? (cortadas / pedido * 100) : 0;
                     const despPct = pedido ? (despachoAlmacen / pedido * 100) : 0;
+                    const ingresoPct = ingresoNeto ? (cortadas / ingresoNeto * 100) : 0;
 
                     totalPedido += pedido;
                     totalPedidoHM += pedidoHM;
@@ -1903,6 +2192,7 @@
                     totalGirado += girado;
                     totalCortadas += cortadas;
                     totalDespachoAlmacen += despachoAlmacen;
+                    totalIngresoNeto += ingresoNeto;
 
                     tr.innerHTML = `
                         <td class="py-2 px-2">${estilo}</td>
@@ -1914,6 +2204,8 @@
                         <td class="py-1 px-1 text-right">${giroPct.toFixed(2)}%</td>
                         <td class="py-1 px-1 text-right">${formatter.format(cortadas)}</td>
                         <td class="py-1 px-1 text-right">${cortasPct.toFixed(2)}%</td>
+                        <td class="py-1 px-1 text-right">${formatter.format(ingresoNeto)}</td>
+                        <td class="py-1 px-1 text-right">${ingresoPct.toFixed(2)}%</td>
                         <td class="py-1 px-1 text-right">${formatter.format(despachoAlmacen)}</td>
                         <td class="py-1 px-1 text-right">${despPct.toFixed(2)}%</td>
                     `;
@@ -1928,6 +2220,7 @@
                 const totalGiroPct = totalPedido ? (totalGirado / totalPedido * 100) : 0;
                 const totalCortasPct = totalPedido ? (totalCortadas / totalPedido * 100) : 0;
                 const totalDespPct = totalPedido ? (totalDespachoAlmacen / totalPedido * 100) : 0;
+                const totalIngresoPct = totalIngresoNeto ? (totalCortadas / totalIngresoNeto * 100) : 0;
                 document.getElementById('modalTotalPedido').textContent = formatter.format(totalPedido);
                 document.getElementById('modalTotalPedidoHM').textContent = formatter.format(totalPedidoHM);
                 document.getElementById('modalTotalProg').textContent = formatter.format(totalProg);
@@ -1938,6 +2231,8 @@
                 document.getElementById('modalTotalCortasPct').textContent = totalCortasPct.toFixed(2) + '%';
                 document.getElementById('modalTotalDespachoAlmacen').textContent = formatter.format(totalDespachoAlmacen);
                 document.getElementById('modalTotalDespPct').textContent = totalDespPct.toFixed(2) + '%';
+                document.getElementById('modalTotalIngresoNeto').textContent = formatter.format(totalIngresoNeto);
+                document.getElementById('modalTotalIngresoPct').textContent = totalIngresoPct.toFixed(2) + '%';
 
             } catch (err) {
                 console.error('Error cargando detalle base por cliente', err);
@@ -1968,6 +2263,22 @@
             const colGirado = findColIndex('prendas girado');
             const colCortadas = findColIndex('prendas cortadas neto');
             const colDespachoAlmacen = findColIndex('prendas despacho almacen');
+            // Buscar la columna de Ingreso Neto con múltiples variaciones posibles
+            const colIngresoNeto = headers.findIndex(h => {
+                const hLower = h && h.toString().toLowerCase();
+                return hLower && (
+                    hLower.includes('ingreso') || 
+                    (hLower.includes('prend') && hLower.includes('ingreso')) ||
+                    hLower.includes('prenda ingreso')
+                ) && hLower.includes('neto');
+            });
+            
+            // Diagnóstico
+            console.log('Headers disponibles:', headers);
+            console.log('Índices encontrados:', {
+                colAnio, colMes, colCliente, colEstilo, colPedido, colPedidoHM,
+                colProg, colGirado, colCortadas, colDespachoAlmacen, colIngresoNeto
+            });
             
             if (colCliente === -1) {
                 console.warn('Columna CLIENTE no encontrada en base');
@@ -2025,6 +2336,7 @@
                 const girado = colGirado !== -1 ? (parseFloat(row[colGirado]) || 0) : 0;
                 const cortadas = colCortadas !== -1 ? (parseFloat(row[colCortadas]) || 0) : 0;
                 const despachoAlmacen = colDespachoAlmacen !== -1 ? (parseFloat(row[colDespachoAlmacen]) || 0) : 0;
+                const ingresoNeto = colIngresoNeto !== -1 ? (parseFloat(row[colIngresoNeto]) || 0) : 0;
                 
                 // Agrupar por estilo
                 if (!estiloMap[estilo]) {
@@ -2035,7 +2347,8 @@
                         prog: 0,
                         girado: 0,
                         cortadas: 0,
-                        despachoAlmacen: 0
+                        despachoAlmacen: 0,
+                        ingresoNeto: 0
                     };
                 }
                 
@@ -2045,6 +2358,7 @@
                 estiloMap[estilo].girado += girado;
                 estiloMap[estilo].cortadas += cortadas;
                 estiloMap[estilo].despachoAlmacen += despachoAlmacen;
+                estiloMap[estilo].ingresoNeto += ingresoNeto;
             }
             
             return Object.values(estiloMap);
@@ -2053,13 +2367,18 @@
         function actualizarGraficoClientes(data) {
             if (!charts.clientes || !data || data.length === 0) return;
 
-            // Agrupar por cliente (sumar prendasIngresoNeto y saldos1ra)
+            // Filtrar solo datos con Tipo OP = "P" para el gráfico
+            const dataFiltrada = data.filter(row => row.tipoOp === 'P');
+
+            // Agrupar por cliente (sumar prendasIngresoNeto, saldos1ra, prendasDespacho y prendasPedido)
             const map = {};
-            data.forEach(row => {
+            dataFiltrada.forEach(row => {
                 const cliente = (row.cliente || '').toString();
-                if (!map[cliente]) map[cliente] = { cliente: cliente, prendasIngresoNeto: 0, saldos1ra: 0 };
+                if (!map[cliente]) map[cliente] = { cliente: cliente, prendasIngresoNeto: 0, saldos1ra: 0, prendasDespacho: 0, prendasPedido: 0 };
                 map[cliente].prendasIngresoNeto += Number(row.prendasIngresoNeto) || 0;
                 map[cliente].saldos1ra += Number(row.saldos1ra) || 0;
+                map[cliente].prendasDespacho += Number(row.prendasDespacho) || 0;
+                map[cliente].prendasPedido += Number(row.prendasPedido) || 0;
             });
 
             const aggregated = Object.values(map);
@@ -2073,6 +2392,10 @@
             const labels = aggregated.map(r => r.cliente || '');
             const prendasIngreso = aggregated.map(r => r.prendasIngresoNeto || 0);
             const porcSaldos = aggregated.map(r => r.porc || 0);
+
+            // Guardar datos adicionales en el dataset para usarlos en tooltip
+            charts.clientes.data.datasets[0].prendasDespacho = aggregated.map(r => r.prendasDespacho || 0);
+            charts.clientes.data.datasets[0].prendasPedido = aggregated.map(r => r.prendasPedido || 0);
 
             // Actualizar en batch usando requestAnimationFrame
             requestAnimationFrame(() => {
@@ -2092,6 +2415,129 @@
                 }
 
                 charts.clientes.update('none');
+            });
+        }
+
+        function actualizarTablaClientesHOD(data) {
+            const tbody = document.getElementById('tablaClientesHODBody');
+            const periodo = document.getElementById('hodPeriodo');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-2 text-center text-gray-400">No hay datos disponibles</td></tr>';
+                periodo.textContent = '';
+                return;
+            }
+
+            // Mostrar periodo en el encabezado
+            if (data[0].anio && data[0].mes) {
+                periodo.textContent = `Gráfico producción (no muestras) - ${data[0].mes} ${data[0].anio}`;
+            }
+
+            // Crear copia de datos y ordenar por %Desp. descendente (mayor a menor)
+            const sortedData = [...data].map(row => {
+                row.porcDesp = row.prendasPedido ? (row.prendasDespacho / row.prendasPedido) * 100 : 0;
+                return row;
+            }).sort((a, b) => (b.porcDesp || 0) - (a.porcDesp || 0));
+
+            // Calcular totales
+            const totals = data.reduce((acc, row) => {
+                acc.prendasPedido += Number(row.prendasPedido) || 0;
+                acc.prendasIngresoNeto += Number(row.prendasIngresoNeto) || 0;
+                acc.prendasDespacho += Number(row.prendasDespacho) || 0;
+                return acc;
+            }, { prendasPedido: 0, prendasIngresoNeto: 0, prendasDespacho: 0 });
+
+            const totalPorc = totals.prendasPedido ? (totals.prendasDespacho / totals.prendasPedido) * 100 : 0;
+
+            // Generar filas usando DocumentFragment para mejor rendimiento
+            const fragment = document.createDocumentFragment();
+            const formatter = new Intl.NumberFormat('es-PE');
+            
+            sortedData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-gray-50';
+                
+                tr.innerHTML = `
+                    <td class="py-2 px-2">${row.cliente || ''}</td>
+                    <td class="py-2 px-2">${row.tipoOp || ''}</td>
+                    <td class="py-2 px-2 text-right">${formatter.format(row.prendasPedido || 0)}</td>
+                    <td class="py-2 px-2 text-right">${formatter.format(row.prendasIngresoNeto || 0)}</td>
+                    <td class="py-2 px-2 text-right">${formatter.format(row.prendasDespacho || 0)}</td>
+                    <td class="py-2 px-2 text-right font-semibold">${row.porcDesp.toFixed(2)}%</td>
+                `;
+                fragment.appendChild(tr);
+            });
+
+            // Fila total
+            const totalTr = document.createElement('tr');
+            totalTr.className = 'bg-gray-800 text-white font-bold';
+            totalTr.innerHTML = `
+                <td class="py-2 px-2">TOTAL</td>
+                <td class="py-2 px-2">&nbsp;</td>
+                <td class="py-2 px-2 text-right">${formatter.format(totals.prendasPedido)}</td>
+                <td class="py-2 px-2 text-right">${formatter.format(totals.prendasIngresoNeto)}</td>
+                <td class="py-2 px-2 text-right">${formatter.format(totals.prendasDespacho)}</td>
+                <td class="py-2 px-2 text-right">${totalPorc.toFixed(2)}%</td>
+            `;
+            fragment.appendChild(totalTr);
+
+            // Actualizar DOM una sola vez
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+        }
+
+        function actualizarGraficoClientesHOD(data) {
+            if (!charts.clientesHOD || !data || data.length === 0) return;
+
+            // Filtrar solo datos con Tipo OP = "P" para el gráfico
+            const dataFiltrada = data.filter(row => row.tipoOp === 'P');
+
+            // Agrupar por cliente (sumar prendasPedido, prendasIngresoNeto, prendasDespacho y saldos1ra)
+            const map = {};
+            dataFiltrada.forEach(row => {
+                const cliente = (row.cliente || '').toString();
+                if (!map[cliente]) map[cliente] = { cliente: cliente, prendasPedido: 0, prendasIngresoNeto: 0, prendasDespacho: 0, saldos1ra: 0 };
+                map[cliente].prendasPedido += Number(row.prendasPedido) || 0;
+                map[cliente].prendasIngresoNeto += Number(row.prendasIngresoNeto) || 0;
+                map[cliente].prendasDespacho += Number(row.prendasDespacho) || 0;
+                map[cliente].saldos1ra += Number(row.saldos1ra) || 0;
+            });
+
+            const aggregated = Object.values(map);
+            // Calcular %Desp agregado por cliente y %Saldo 1ra
+            aggregated.forEach(r => {
+                r.porc = r.prendasPedido ? (r.prendasDespacho / r.prendasPedido) * 100 : 0;
+                r.porcSaldo1ra = r.prendasIngresoNeto ? (r.saldos1ra / r.prendasIngresoNeto) * 100 : 0;
+            });
+            // Ordenar por %Desp descendente
+            aggregated.sort((a, b) => b.porc - a.porc);
+
+            const labels = aggregated.map(r => r.cliente || '');
+            const prendasDesp = aggregated.map(r => r.prendasDespacho || 0);
+            const porcDesp = aggregated.map(r => r.porc || 0);
+
+            // Guardar datos adicionales en el dataset para usarlos en tooltip
+            charts.clientesHOD.data.datasets[0].prendasDespacho = aggregated.map(r => r.prendasDespacho || 0);
+            charts.clientesHOD.data.datasets[0].porcDesp = aggregated.map(r => r.porc || 0);
+
+            // Actualizar en batch usando requestAnimationFrame
+            requestAnimationFrame(() => {
+                charts.clientesHOD.data.labels = labels;
+                charts.clientesHOD.data.datasets[0].data = prendasDesp;
+                charts.clientesHOD.data.datasets[1].data = porcDesp;
+
+                // Ajustar máximo del eje secundario
+                try {
+                    const maxPorc = porcDesp.length ? Math.max(...porcDesp.map(v => Number(v) || 0)) : 0;
+                    const suggestedMax = maxPorc > 0 ? maxPorc * 1.25 : 1;
+                    if (!charts.clientesHOD.options.scales.y1) charts.clientesHOD.options.scales.y1 = {};
+                    charts.clientesHOD.options.scales.y1.max = Math.round(suggestedMax * 100) / 100;
+                    charts.clientesHOD.options.scales.y1.min = -5;
+                } catch (e) {
+                    console.warn('No se pudo ajustar max del eje y1 en chartClientesHOD', e);
+                }
+
+                charts.clientesHOD.update('none');
             });
         }
 
@@ -2157,7 +2603,7 @@
                                 // Detectar la clave de la columna que contiene 'pesta'
                                 const pestaKey = cols.find(k => k && k.toLowerCase().includes('pesta')) || 'Pestaña';
                                 const activeBtn = document.querySelector('.tab-button.active');
-                                const currentTabName = activeBtn ? activeBtn.innerText.trim() : 'Pds por regularizar';
+                                const currentTabName = activeBtn ? activeBtn.innerText.trim() : 'Pds no reportadas';
                                 
                                 // Filtrar por pestaña actual
                                 const filtered = allRows.filter(r => {
@@ -2268,17 +2714,31 @@
                 }
 
                 // Caché de meses para evitar crear el array repetidamente
-                const months = ['ene','feb','mar','abr','may','jun','jul','ago','set','oct','nov','dic'];
+                const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];
                 
                 // Función optimizada para formatear fechas
                 const formatValue = (v) => {
                     if (v === null || v === undefined || v === '') return '';
-                    
-                    // Intentar parsear fecha solo si parece una fecha
-                    if (typeof v === 'string' && (v.includes('T') || v.includes('-') || v.includes('/'))) {
-                        const parsed = new Date(v);
-                        if (!isNaN(parsed.getTime())) {
-                            return `${String(parsed.getDate()).padStart(2,'0')}/${months[parsed.getMonth()]}/${parsed.getFullYear()}`;
+
+                    // Manejar cadenas con formato Date(YYYY,MM,DD) o new Date(...)
+                    if (typeof v === 'string') {
+                        const ctorMatch = v.match(/Date\((\d+),\s*(\d+),\s*(\d+)\)/i);
+                        if (ctorMatch) {
+                            const y = parseInt(ctorMatch[1], 10);
+                            const m = parseInt(ctorMatch[2], 10);
+                            const d = parseInt(ctorMatch[3], 10);
+                            const parsedCtor = new Date(y, m, d);
+                            if (!isNaN(parsedCtor.getTime())) {
+                                return `${String(parsedCtor.getDate()).padStart(2,'0')}/${months[parsedCtor.getMonth()]}/${parsedCtor.getFullYear()}`;
+                            }
+                        }
+
+                        // Intentar parsear fecha solo si parece una fecha estándar
+                        if (v.includes('T') || v.includes('-') || v.includes('/')) {
+                            const parsed = new Date(v);
+                            if (!isNaN(parsed.getTime())) {
+                                return `${String(parsed.getDate()).padStart(2,'0')}/${months[parsed.getMonth()]}/${parsed.getFullYear()}`;
+                            }
                         }
                     } else if (v instanceof Date && !isNaN(v.getTime())) {
                         return `${String(v.getDate()).padStart(2,'0')}/${months[v.getMonth()]}/${v.getFullYear()}`;
@@ -2371,7 +2831,7 @@
                 // Determinar nombre de pestaña activa
                 function getActiveTabName() {
                     const btn = document.querySelector('.tab-button.active');
-                    return btn ? btn.innerText.trim() : 'Pds por regularizar';
+                    return btn ? btn.innerText.trim() : 'Pds no reportadas';
                 }
                 const activeTab = getActiveTabName();
 
@@ -2472,7 +2932,7 @@
                 }
                 if (pestaKey) {
                     const btn = document.querySelector('.tab-button.active');
-                    const activeTabName = btn ? btn.innerText.trim() : 'Pds por regularizar';
+                    const activeTabName = btn ? btn.innerText.trim() : 'Pds no reportadas';
                     obj[pestaKey] = activeTabName;
                 }
 
@@ -2521,6 +2981,207 @@
                     console.error('Error guardando accion:', err);
                     return false;
                 }
+            }
+
+            // ==================== MODAL CLIENTE CHART ====================
+            
+            // Abrir modal de gráfico por cliente
+            document.getElementById('btnModalClienteChart').addEventListener('click', function() {
+                openModalClienteChart();
+            });
+
+            // Cerrar modal
+            document.getElementById('modalClienteChartClose').addEventListener('click', closeModalClienteChart);
+            document.getElementById('modalClienteChartOverlay').addEventListener('click', closeModalClienteChart);
+
+            function closeModalClienteChart() {
+                const modal = document.getElementById('modalClienteChart');
+                if (modal) modal.classList.add('hidden');
+            }
+
+            // Cambio en el filtro de cliente
+            document.getElementById('modalClienteFilter').addEventListener('change', function() {
+                actualizarGraficoClienteModal();
+            });
+
+            function openModalClienteChart() {
+                const modal = document.getElementById('modalClienteChart');
+                modal.classList.remove('hidden');
+                
+                // Verificar si rawDataBase está cargado
+                if (!rawDataBase || rawDataBase.length <= 1) {
+                    console.warn('Datos base aún no disponibles, esperando...');
+                    // Esperar a que los datos se carguen
+                    const checkInterval = setInterval(() => {
+                        if (rawDataBase && rawDataBase.length > 1) {
+                            clearInterval(checkInterval);
+                            cargarClientesEnFiltro();
+                            actualizarGraficoClienteModal();
+                            setTimeout(() => {
+                                if (charts.clienteModal) charts.clienteModal.resize();
+                            }, 100);
+                        }
+                    }, 100);
+                    // Timeout de seguridad: máximo 5 segundos de espera
+                    setTimeout(() => clearInterval(checkInterval), 5000);
+                    return;
+                }
+                
+                // Cargar lista de clientes en el select
+                cargarClientesEnFiltro();
+                
+                // Actualizar gráfico con todos los clientes inicialmente
+                actualizarGraficoClienteModal();
+                
+                // Redimensionar el gráfico después de que el modal sea visible
+                setTimeout(() => {
+                    if (charts.clienteModal) charts.clienteModal.resize();
+                }, 100);
+            }
+
+            function cargarClientesEnFiltro() {
+                const select = document.getElementById('modalClienteFilter');
+                if (!select || !rawDataBase || rawDataBase.length <= 1) return;
+                
+                const headers = rawDataBase[0];
+                const colCliente = 3; // Columna D: Cliente
+                
+                // Obtener clientes únicos
+                const clientesSet = new Set();
+                for (let i = 1; i < rawDataBase.length; i++) {
+                    const cliente = (rawDataBase[i][colCliente] || '').toString().trim();
+                    if (cliente) clientesSet.add(cliente);
+                }
+                
+                // Ordenar alfabéticamente
+                const clientes = Array.from(clientesSet).sort();
+                
+                // Limpiar y poblar el select
+                select.innerHTML = '<option value="">Todos los clientes</option>';
+                clientes.forEach(cliente => {
+                    const option = document.createElement('option');
+                    option.value = cliente;
+                    option.textContent = cliente;
+                    select.appendChild(option);
+                });
+                
+                // Establecer LULU como valor por defecto
+                select.value = 'LULU';
+            }
+
+            function actualizarGraficoClienteModal() {
+                if (!charts.clienteModal || !rawDataBase || rawDataBase.length <= 1) return;
+                
+                const clienteSeleccionado = document.getElementById('modalClienteFilter').value;
+                
+                // Obtener rango de fechas del filtro principal
+                const desdeAnio = parseInt(document.getElementById('desdeAnio').value);
+                const hastaAnio = parseInt(document.getElementById('hastaAnio').value);
+                const desdeMes = parseInt(document.getElementById('desdeMes').value);
+                const hastaMes = parseInt(document.getElementById('hastaMes').value);
+                
+                const headers = rawDataBase[0];
+                const colAnio = 0;
+                const colMes = 1;
+                const colCliente = 3; // Columna D
+                
+                // Buscar índice de "Prendas Ingreso Neto" (columna BA = índice 52)
+                const colIngresoNeto = 52;
+                
+                // Buscar índice de "Diferencia Liquidac.vs Ing+Reasig" - buscar en headers
+                let colDiferencia = headers.findIndex(h => {
+                    const hLower = (h || '').toString().toLowerCase();
+                    return (hLower.includes('diferencia') && hLower.includes('liquidac')) || 
+                           (hLower.includes('dif') && hLower.includes('liqu') && hLower.includes('ing'));
+                });
+                
+                // Si no se encuentra, intentar buscar otra variación
+                if (colDiferencia === -1) {
+                    colDiferencia = headers.findIndex(h => {
+                        const hLower = (h || '').toString().toLowerCase();
+                        return hLower.includes('diferencia') && (hLower.includes('ing') || hLower.includes('reasig'));
+                    });
+                }
+                
+                console.log('Columnas encontradas - IngresoNeto:', colIngresoNeto, 'Diferencia:', colDiferencia);
+                console.log('Headers:', headers);
+                
+                const monthsOrder = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
+                
+                // Agrupar datos por mes/año
+                const dataMap = {};
+                
+                for (let i = 1; i < rawDataBase.length; i++) {
+                    const row = rawDataBase[i];
+                    const anio = parseInt(row[colAnio]) || 0;
+                    const mesTxt = (row[colMes] || '').toString().trim();
+                    const mesIdx = monthsOrder.indexOf(mesTxt);
+                    const cliente = (row[colCliente] || '').toString().trim();
+                    
+                    if (mesIdx === -1) continue;
+                    
+                    // Aplicar filtro de fechas principal
+                    if (anio < desdeAnio || anio > hastaAnio) continue;
+                    if (anio === desdeAnio && mesIdx < desdeMes) continue;
+                    if (anio === hastaAnio && mesIdx > hastaMes) continue;
+                    
+                    // Aplicar filtro de cliente si está seleccionado
+                    if (clienteSeleccionado && cliente.toLowerCase() !== clienteSeleccionado.toLowerCase()) continue;
+                    
+                    const key = `${anio}|${mesTxt}`;
+                    const ingresoNeto = parseFloat(row[colIngresoNeto]) || 0;
+                    const diferencia = colDiferencia !== -1 ? (parseFloat(row[colDiferencia]) || 0) : 0;
+                    
+                    if (!dataMap[key]) {
+                        dataMap[key] = {
+                            anio: anio,
+                            mes: mesTxt,
+                            mesIdx: mesIdx,
+                            ingresoNeto: 0,
+                            diferencia: 0
+                        };
+                    }
+                    
+                    dataMap[key].ingresoNeto += ingresoNeto;
+                    dataMap[key].diferencia += diferencia;
+                }
+                
+                // Convertir a array y ordenar por fecha
+                const dataArray = Object.values(dataMap).sort((a, b) => {
+                    if (a.anio !== b.anio) return a.anio - b.anio;
+                    return a.mesIdx - b.mesIdx;
+                });
+                
+                // Preparar datos para el gráfico
+                const labels = dataArray.map(d => `${d.mes} ${d.anio}`);
+                const dataIngresoNeto = dataArray.map(d => d.ingresoNeto);
+                const dataDiferencia = dataArray.map(d => Math.abs(d.diferencia)); // Multiplicar por -1 (valor absoluto para positivo)
+                const dataPorcentaje = dataArray.map(d => {
+                    if (d.ingresoNeto === 0) return 0;
+                    return Number(((Math.abs(d.diferencia) / d.ingresoNeto) * 100).toFixed(2));
+                });
+                
+                // Actualizar título con cliente seleccionado
+                const title = document.getElementById('modalClienteChartTitle');
+                if (clienteSeleccionado) {
+                    title.textContent = `Ingreso Neto vs Diferencia - ${clienteSeleccionado}`;
+                } else {
+                    title.textContent = 'Ingreso Neto vs Diferencia por Cliente - Todos';
+                }
+                
+                // Actualizar gráfico
+                charts.clienteModal.data.labels = labels;
+                charts.clienteModal.data.datasets[0].data = dataIngresoNeto;
+                charts.clienteModal.data.datasets[1].data = dataDiferencia;
+                charts.clienteModal.data.datasets[2].data = dataPorcentaje;
+                
+                // Ajustar eje Y secundario
+                const maxPorc = dataPorcentaje.length ? Math.max(...dataPorcentaje) : 0;
+                const suggestedMax = maxPorc > 0 ? maxPorc * 1.25 : 10;
+                charts.clienteModal.options.scales.y1.max = Math.round(suggestedMax * 100) / 100;
+                charts.clienteModal.options.scales.y1.min = -0.5;
+                
+                charts.clienteModal.update('none');
             }
     </script>
 </body>
