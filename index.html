@@ -18,8 +18,8 @@
         .filter-select {
             border: 1px solid #D1D5DB;
             border-radius: 0.375rem;
-            padding: 0.375rem 0.75rem;
-            font-size: 0.875rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
             outline: none;
             color: #374151;
             font-weight: 500;
@@ -57,8 +57,8 @@
         }
         /* Estilos para tabs */
         .tab-button {
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8rem;
             font-weight: 500;
             border-radius: 0.5rem;
             transition: all 0.2s ease;
@@ -66,6 +66,7 @@
             color: #4b5563;
             border: none;
             cursor: pointer;
+            white-space: nowrap;
         }
         .tab-button:hover {
             background-color: #e5e7eb;
@@ -95,14 +96,14 @@
     </div>
 
     <!-- BLOQUE SUPERIOR: Título y Filtros -->
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 text-white p-2 rounded-lg">
-                    <i class="fa-solid fa-chart-line text-xl"></i>
+    <div class="bg-white rounded-xl shadow-sm px-3 py-2 mb-3 flex flex-col md:flex-row justify-between items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 text-white p-1.5 rounded-lg">
+                    <i class="fa-solid fa-chart-line text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Indicadores de Liquidación</h1>
+                    <h1 class="text-xl font-bold text-gray-800 tracking-tight">Indicadores de Liquidación</h1>
                     <div id="connectionStatus" class="text-xs text-gray-500 flex items-center">
                         <span>Estado: </span>
                         <span id="statusText" class="ml-1 font-medium">Listo</span>
@@ -111,7 +112,7 @@
                 </div>
             </div>
             <!-- Tabs de navegación -->
-            <div class="flex items-center gap-2 ml-4 border-l pl-4 border-gray-300">
+            <div class="flex items-center gap-1.5 ml-3 border-l pl-3 border-gray-300">
                 <button id="tabPdsRegularizar" class="tab-button active" onclick="switchTab('pdsRegularizar')">
                     <i class="fa-solid fa-chart-column mr-1"></i>Pds no reportadas
                 </button>
@@ -128,8 +129,8 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-100">
-            <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+            <div class="flex items-center gap-1.5">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Desde:</span>
                 <select id="desdeAnio" class="filter-select bg-white">
                     <option value="2024">2024</option>
@@ -143,8 +144,8 @@
                     <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dic</option>
                 </select>
             </div>
-            <div class="h-6 w-px bg-gray-300 mx-1"></div>
-            <div class="flex items-center gap-2">
+            <div class="h-5 w-px bg-gray-300 mx-0.5"></div>
+            <div class="flex items-center gap-1.5">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Hasta:</span>
                 <select id="hastaAnio" class="filter-select bg-white">
                     <option value="2024">2024</option>
@@ -160,8 +161,8 @@
             </div>
             
             <!-- Botón circular para cargar datos -->
-            <div class="ml-2">
-                <a href="importar_excel.html" title="Cargar datos" class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+            <div class="ml-1">
+                <a href="importar_excel.html" title="Cargar datos" class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md text-sm">
                     <i class="fa-solid fa-file-import"></i>
                 </a>
             </div>
@@ -586,15 +587,20 @@
             cargarDatosIniciales(); // Carga paralela optimizada
             
             // Debounce para evitar múltiples llamadas al cambiar filtros
+            // Solo aplicar a los selectores de fecha principales, no al modal
             let filterTimeout;
-            document.querySelectorAll('select').forEach(sel => {
-                sel.addEventListener('change', () => {
-                    clearTimeout(filterTimeout);
-                    filterTimeout = setTimeout(() => {
-                        // Procesar datos ya cargados con nuevos filtros
-                        procesarDatosOptimizado();
-                    }, 300); // 300ms de espera
-                });
+            const filterSelects = ['desdeAnio', 'desdeMes', 'hastaAnio', 'hastaMes'];
+            filterSelects.forEach(selId => {
+                const sel = document.getElementById(selId);
+                if (sel) {
+                    sel.addEventListener('change', () => {
+                        clearTimeout(filterTimeout);
+                        filterTimeout = setTimeout(() => {
+                            // Procesar datos ya cargados con nuevos filtros
+                            procesarDatosOptimizado();
+                        }, 300); // 300ms de espera
+                    });
+                }
             });
         });
         
@@ -1644,6 +1650,14 @@
             const monthsOrder = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
             const dataFiltrada = [];
             
+            // Crear fechas numéricas para comparación (año * 12 + mes)
+            const fechaDesde = desdeAnio * 12 + desdeMes;
+            const fechaHasta = hastaAnio * 12 + hastaMes;
+            
+            // Si las fechas están invertidas, intercambiarlas
+            const fechaMin = Math.min(fechaDesde, fechaHasta);
+            const fechaMax = Math.max(fechaDesde, fechaHasta);
+            
             for (let i = 1; i < rawDataResumen.length; i++) {
                 const row = rawDataResumen[i];
                 const anio = parseInt(row[colAnio]) || 0;
@@ -1652,10 +1666,11 @@
                 
                 if (mesIdx === -1) continue;
                 
-                // Filtrar por rango
-                if (anio < desdeAnio || anio > hastaAnio) continue;
-                if (anio === desdeAnio && mesIdx < desdeMes) continue;
-                if (anio === hastaAnio && mesIdx > hastaMes) continue;
+                // Crear fecha numérica del registro para comparación
+                const fechaRegistro = anio * 12 + mesIdx;
+                
+                // Filtrar por rango usando comparación numérica simple
+                if (fechaRegistro < fechaMin || fechaRegistro > fechaMax) continue;
                 
                 dataFiltrada.push({
                     anio: anio,
@@ -3044,7 +3059,17 @@
                 if (!select || !rawDataBase || rawDataBase.length <= 1) return;
                 
                 const headers = rawDataBase[0];
-                const colCliente = 3; // Columna D: Cliente
+                
+                // Buscar columna Cliente por nombre
+                const colCliente = headers.findIndex(h => {
+                    const hLower = (h || '').toString().toLowerCase().trim();
+                    return hLower === 'cliente';
+                });
+                
+                if (colCliente === -1) {
+                    console.warn('No se encontró la columna Cliente en headers');
+                    return;
+                }
                 
                 // Obtener clientes únicos
                 const clientesSet = new Set();
@@ -3065,8 +3090,12 @@
                     select.appendChild(option);
                 });
                 
-                // Establecer LULU como valor por defecto
-                select.value = 'LULU';
+                // Establecer LULU como valor por defecto si existe
+                if (clientes.includes('LULU')) {
+                    select.value = 'LULU';
+                } else if (clientes.length > 0) {
+                    select.value = clientes[0];
+                }
             }
 
             function actualizarGraficoClienteModal() {
@@ -3081,12 +3110,35 @@
                 const hastaMes = parseInt(document.getElementById('hastaMes').value);
                 
                 const headers = rawDataBase[0];
-                const colAnio = 0;
-                const colMes = 1;
-                const colCliente = 3; // Columna D
                 
-                // Buscar índice de "Prendas Ingreso Neto" (columna BA = índice 52)
-                const colIngresoNeto = 52;
+                // Buscar índices de columnas por nombre en headers
+                const colAnio = headers.findIndex(h => {
+                    const hLower = (h || '').toString().toLowerCase().trim();
+                    return hLower === 'año' || hLower === 'anio' || hLower === 'ano';
+                });
+                
+                const colMes = headers.findIndex(h => {
+                    const hLower = (h || '').toString().toLowerCase().trim();
+                    return hLower === 'mes';
+                });
+                
+                const colCliente = headers.findIndex(h => {
+                    const hLower = (h || '').toString().toLowerCase().trim();
+                    return hLower === 'cliente';
+                });
+                
+                // Buscar índice de "Prendas Ingreso Neto" - buscar por nombre
+                let colIngresoNeto = headers.findIndex(h => {
+                    const hLower = (h || '').toString().toLowerCase();
+                    return hLower.includes('prendas') && hLower.includes('ingreso') && hLower.includes('neto');
+                });
+                // Fallback: buscar solo "Ingreso Neto"
+                if (colIngresoNeto === -1) {
+                    colIngresoNeto = headers.findIndex(h => {
+                        const hLower = (h || '').toString().toLowerCase();
+                        return hLower.includes('ingreso') && hLower.includes('neto');
+                    });
+                }
                 
                 // Buscar índice de "Diferencia Liquidac.vs Ing+Reasig" - buscar en headers
                 let colDiferencia = headers.findIndex(h => {
@@ -3102,14 +3154,38 @@
                         return hLower.includes('diferencia') && (hLower.includes('ing') || hLower.includes('reasig'));
                     });
                 }
+                // Fallback: buscar solo "Diferencia"
+                if (colDiferencia === -1) {
+                    colDiferencia = headers.findIndex(h => {
+                        const hLower = (h || '').toString().toLowerCase();
+                        return hLower.includes('diferencia');
+                    });
+                }
                 
-                console.log('Columnas encontradas - IngresoNeto:', colIngresoNeto, 'Diferencia:', colDiferencia);
+                console.log('Columnas encontradas - Año:', colAnio, 'Mes:', colMes, 'Cliente:', colCliente, 'IngresoNeto:', colIngresoNeto, 'Diferencia:', colDiferencia);
                 console.log('Headers:', headers);
+                
+                // Validar que se encontraron las columnas esenciales
+                if (colAnio === -1 || colMes === -1 || colCliente === -1 || colIngresoNeto === -1) {
+                    console.warn('No se encontraron columnas esenciales en la hoja base');
+                    return;
+                }
                 
                 const monthsOrder = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
                 
+                // Crear fechas numéricas para comparación (año * 12 + mes)
+                const fechaDesde = desdeAnio * 12 + desdeMes;
+                const fechaHasta = hastaAnio * 12 + hastaMes;
+                
+                // Si las fechas están invertidas, intercambiarlas
+                const fechaMin = Math.min(fechaDesde, fechaHasta);
+                const fechaMax = Math.max(fechaDesde, fechaHasta);
+                
                 // Agrupar datos por mes/año
                 const dataMap = {};
+                let registrosEncontrados = 0;
+                let registrosFiltradosPorFecha = 0;
+                let registrosFiltradosPorCliente = 0;
                 
                 for (let i = 1; i < rawDataBase.length; i++) {
                     const row = rawDataBase[i];
@@ -3120,14 +3196,22 @@
                     
                     if (mesIdx === -1) continue;
                     
-                    // Aplicar filtro de fechas principal
-                    if (anio < desdeAnio || anio > hastaAnio) continue;
-                    if (anio === desdeAnio && mesIdx < desdeMes) continue;
-                    if (anio === hastaAnio && mesIdx > hastaMes) continue;
+                    // Crear fecha numérica del registro para comparación
+                    const fechaRegistro = anio * 12 + mesIdx;
+                    
+                    // Aplicar filtro de fechas usando comparación numérica simple
+                    if (fechaRegistro < fechaMin || fechaRegistro > fechaMax) { 
+                        registrosFiltradosPorFecha++; 
+                        continue; 
+                    }
                     
                     // Aplicar filtro de cliente si está seleccionado
-                    if (clienteSeleccionado && cliente.toLowerCase() !== clienteSeleccionado.toLowerCase()) continue;
+                    if (clienteSeleccionado && cliente.toUpperCase() !== clienteSeleccionado.toUpperCase()) { 
+                        registrosFiltradosPorCliente++; 
+                        continue; 
+                    }
                     
+                    registrosEncontrados++;
                     const key = `${anio}|${mesTxt}`;
                     const ingresoNeto = parseFloat(row[colIngresoNeto]) || 0;
                     const diferencia = colDiferencia !== -1 ? (parseFloat(row[colDiferencia]) || 0) : 0;
@@ -3145,6 +3229,9 @@
                     dataMap[key].ingresoNeto += ingresoNeto;
                     dataMap[key].diferencia += diferencia;
                 }
+                
+                console.log('Filtro aplicado - Cliente:', clienteSeleccionado, 'Rango fecha:', fechaMin, '-', fechaMax);
+                console.log('Registros encontrados:', registrosEncontrados, 'Filtrados por fecha:', registrosFiltradosPorFecha, 'Filtrados por cliente:', registrosFiltradosPorCliente);
                 
                 // Convertir a array y ordenar por fecha
                 const dataArray = Object.values(dataMap).sort((a, b) => {
